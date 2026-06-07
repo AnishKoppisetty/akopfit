@@ -17,9 +17,10 @@ async function signPhotos(paths: string[]): Promise<string[]> {
 }
 
 export async function fetchClientData(userId: string): Promise<AppData> {
-  const [profileRes, planRes, weightsRes, dailyRes, foodsRes, setsRes, checkInsRes] = await Promise.all([
+  const [profileRes, planRes, programRes, weightsRes, dailyRes, foodsRes, setsRes, checkInsRes] = await Promise.all([
     supabase.from('profiles').select('id, name, email, unit, height_cm, start_weight').eq('id', userId).maybeSingle(),
     supabase.from('plans').select('*').eq('user_id', userId).maybeSingle(),
+    supabase.from('programs').select('days').eq('user_id', userId).maybeSingle(),
     supabase.from('weight_logs').select('date, weight').eq('user_id', userId).order('date'),
     supabase.from('daily_logs').select('*').eq('user_id', userId),
     supabase.from('food_entries').select('*').eq('user_id', userId),
@@ -29,6 +30,8 @@ export async function fetchClientData(userId: string): Promise<AppData> {
 
   const profile = profileRes.data as ProfileRow | null
   const plan = planRes.data as PlanRow | null
+  const programDays = (programRes.data as { days: any[] } | null)?.days
+  const split = programDays && programDays.length > 0 ? programDays : SEED.split
 
   const weightLogs = ((weightsRes.data as any[]) ?? []).map(w => ({ date: w.date, weight: Number(w.weight) }))
   const startWeight = profile?.start_weight ?? weightLogs[0]?.weight ?? 0
@@ -81,7 +84,7 @@ export async function fetchClientData(userId: string): Promise<AppData> {
     targets: plan
       ? { calories: plan.calories, protein: plan.protein, carbs: plan.carbs, fat: plan.fat, steps: plan.steps, cardioMinutes: plan.cardio_minutes, water: plan.water }
       : { ...SEED.targets },
-    split: SEED.split,
+    split,
     weightLogs,
     dailyLogs,
     checkIns,

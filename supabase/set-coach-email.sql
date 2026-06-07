@@ -1,5 +1,6 @@
--- Update the coach email to anishkoppisetty@icloud.com.
--- Safe to run anytime (also promotes an existing account with this email).
+-- Coach = anishkoppisetty@gmail.com.
+-- Also demotes the earlier iCloud account to a client (handy test client).
+-- Safe to run anytime.
 
 create or replace function public.handle_new_user()
 returns trigger
@@ -12,7 +13,7 @@ begin
     new.id,
     new.email,
     coalesce(new.raw_user_meta_data->>'name', split_part(new.email, '@', 1)),
-    case when lower(new.email) = lower('anishkoppisetty@icloud.com') then 'coach' else 'client' end
+    case when lower(new.email) = lower('anishkoppisetty@gmail.com') then 'coach' else 'client' end
   )
   on conflict (id) do nothing;
 
@@ -23,6 +24,10 @@ begin
 end;
 $$;
 
--- If you already signed up with this email, make that profile the coach.
+-- Promote the gmail account to coach (if it already signed in).
 update public.profiles set role = 'coach'
+where lower(email) = lower('anishkoppisetty@gmail.com');
+
+-- Demote the iCloud account to a client so it shows up in your roster as a test client.
+update public.profiles set role = 'client'
 where lower(email) = lower('anishkoppisetty@icloud.com');

@@ -1,5 +1,8 @@
-import { CoachData } from './types'
+import { CoachData, CoachClient } from './types'
 import { daysAgoISO } from '../utils'
+import { seedData } from '../seed'
+
+const DEFAULT_PROGRAM = seedData().split
 
 function w(weights: [number, number][]): { date: string; weight: number }[] {
   // [daysAgo, weight] -> WeightLog[]
@@ -7,9 +10,7 @@ function w(weights: [number, number][]): { date: string; weight: number }[] {
 }
 
 export function coachSeed(): CoachData {
-  return {
-    coachName: 'Coach Akop',
-    clients: [
+  const clients: Omit<CoachClient, 'program'>[] = [
       {
         id: 'alex',
         name: 'Alex Rivera',
@@ -92,6 +93,9 @@ export function coachSeed(): CoachData {
         today: { calories: 1420, protein: 88, steps: 8200, cardioMinutes: 20, water: 6, workoutDone: true },
         checkIns: [],
       },
-    ],
+  ]
+  return {
+    coachName: 'Coach Akop',
+    clients: clients.map(c => ({ ...c, program: DEFAULT_PROGRAM })),
   }
 }

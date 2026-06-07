@@ -1,4 +1,4 @@
-import { Goal, Targets, WeightLog, CheckIn } from '../types'
+import { Goal, Targets, WeightLog, CheckIn, TrainingDay } from '../types'
 
 export interface TodaySnapshot {
   calories: number
@@ -19,6 +19,7 @@ export interface CoachClient {
   joinedDaysAgo: number
   splitName: string
   targets: Targets
+  program: TrainingDay[]
   weightLogs: WeightLog[]
   checkIns: CheckIn[]
   today: TodaySnapshot

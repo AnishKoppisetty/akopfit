@@ -9,7 +9,7 @@
 
 -- >>> CHANGE THIS to your email <<<
 --     (used by the new-user trigger to assign the coach role)
---     Coach: anishkoppisetty@icloud.com
+--     Coach: anishkoppisetty@gmail.com
 
 -- ----------------------------------------------------------------
 -- Tables
@@ -118,7 +118,7 @@ begin
     new.id,
     new.email,
     coalesce(new.raw_user_meta_data->>'name', split_part(new.email, '@', 1)),
-    case when lower(new.email) = lower('anishkoppisetty@icloud.com') then 'coach' else 'client' end
+    case when lower(new.email) = lower('anishkoppisetty@gmail.com') then 'coach' else 'client' end
   )
   on conflict (id) do nothing;
 

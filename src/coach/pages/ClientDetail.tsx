@@ -98,6 +98,26 @@ export default function ClientDetail() {
         <div className="flex justify-between text-sm"><span className="text-muted">Training split</span><span className="font-semibold">{c.splitName}</span></div>
       </Card>
 
+      {/* Training program */}
+      <div className="flex items-center justify-between mb-3 mt-6">
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted">Training program</h2>
+        <Link to={`/coach/client/${c.id}/program`} className="text-xs text-accent font-semibold">Edit program</Link>
+      </div>
+      <Link to={`/coach/client/${c.id}/program`}>
+        <Card className="divide-y divide-ink-600/50">
+          {c.program.length === 0 && <p className="text-sm text-muted py-1">No program yet — tap to build one.</p>}
+          {c.program.map(day => (
+            <div key={day.id} className="flex items-center justify-between py-2.5">
+              <div>
+                <span className="text-sm font-medium">{day.focus}</span>
+                <span className="text-xs text-muted ml-2">{day.label}</span>
+              </div>
+              <span className="text-xs text-muted">{day.rest ? 'Rest' : `${day.exercises.length} exercises`}</span>
+            </div>
+          ))}
+        </Card>
+      </Link>
+
       {/* Check-ins */}
       <h2 className="text-sm font-semibold uppercase tracking-wider text-muted mb-3 mt-6">Check-in history</h2>
       {c.checkIns.length === 0 ? (

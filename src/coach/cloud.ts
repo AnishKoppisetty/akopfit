@@ -1,7 +1,10 @@
 import { supabase } from '../lib/supabase'
 import { CoachData, CoachClient } from './types'
-import { Targets, CheckIn } from '../types'
+import { Targets, CheckIn, TrainingDay } from '../types'
 import { todayISO, daysBetween, toISO } from '../utils'
+import { seedData } from '../seed'
+
+const DEFAULT_PROGRAM = seedData().split
 
 // ---- DB row shapes ----
 interface ProfileRow { id: string; name: string | null; email: string | null; unit: 'lb' | 'kg'; start_weight: number | null; created_at: string }
@@ -21,9 +24,10 @@ async function signPhotos(paths: string[]): Promise<string[]> {
 
 export async function fetchCoachData(coachName: string): Promise<CoachData> {
   const today = todayISO()
-  const [profiles, plans, weights, checkIns, daily, foods] = await Promise.all([
+  const [profiles, plans, programs, weights, checkIns, daily, foods] = await Promise.all([
     supabase.from('profiles').select('id, name, email, unit, start_weight, created_at').eq('role', 'client'),
     supabase.from('plans').select('*'),
+    supabase.from('programs').select('user_id, days'),
     supabase.from('weight_logs').select('user_id, date, weight').order('date', { ascending: true }),
     supabase.from('check_ins').select('*').order('date', { ascending: false }),
     supabase.from('daily_logs').select('user_id, date, steps, cardio_minutes, water, workout_done').eq('date', today),
@@ -32,6 +36,11 @@ export async function fetchCoachData(coachName: string): Promise<CoachData> {
 
   const planBy = new Map<string, PlanRow>()
   ;(plans.data as PlanRow[] | null)?.forEach(p => planBy.set(p.user_id, p))
+
+  const programBy = new Map<string, TrainingDay[]>()
+  ;(programs.data as { user_id: string; days: TrainingDay[] }[] | null)?.forEach(p => {
+    if (p.days && p.days.length > 0) programBy.set(p.user_id, p.days)
+  })
 
   const weightsBy = new Map<string, WeightRow[]>()
   ;(weights.data as WeightRow[] | null)?.forEach(w => {
@@ -91,6 +100,7 @@ export async function fetchCoachData(coachName: string): Promise<CoachData> {
       joinedDaysAgo: Math.max(0, daysBetween(toISO(new Date(p.created_at)), today)),
       splitName: plan?.split_name ?? 'Push / Pull / Legs',
       targets,
+      program: programBy.get(p.id) ?? DEFAULT_PROGRAM,
       weightLogs: wlogs,
       checkIns: cins,
       today: {
@@ -127,5 +137,11 @@ export async function cloudUpdatePlan(userId: string, patch: Partial<Targets & {
 
 export async function cloudReplyToCheckIn(checkInId: string, reply: string) {
   const { error } = await supabase.from('check_ins').update({ coach_reply: reply }).eq('id', checkInId)
+  if (error) throw error
+}
+
+export async function cloudUpdateProgram(userId: string, days: TrainingDay[]) {
+  const { error } = await supabase.from('programs')
+    .upsert({ user_id: userId, days, updated_at: new Date().toISOString() }, { onConflict: 'user_id' })
   if (error) throw error
 }

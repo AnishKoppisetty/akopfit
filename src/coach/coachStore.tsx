@@ -1,9 +1,9 @@
 import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react'
 import { CoachData, CoachClient } from './types'
-import { Targets } from '../types'
+import { Targets, TrainingDay } from '../types'
 import { coachSeed } from './seed'
 import { useAuth } from '../auth/AuthProvider'
-import { fetchCoachData, cloudUpdatePlan, cloudReplyToCheckIn } from './cloud'
+import { fetchCoachData, cloudUpdatePlan, cloudReplyToCheckIn, cloudUpdateProgram } from './cloud'
 
 const STORAGE_KEY = 'akopfit:coach:v1'
 const AUTH_KEY = 'akopfit:coach:auth'
@@ -19,6 +19,7 @@ interface CoachStore {
   replyToCheckIn: (clientId: string, checkInId: string, reply: string) => void
   updateClientTargets: (clientId: string, targets: Partial<Targets>) => void
   updateClient: (clientId: string, patch: Partial<Pick<CoachClient, 'goal' | 'goalWeight' | 'splitName'>>) => void
+  updateProgram: (clientId: string, days: TrainingDay[]) => void
   resetCoach: () => void
   refresh: () => void
 }
@@ -73,10 +74,15 @@ function CloudCoachProvider({ coachName, children }: { coachName: string; childr
     cloudReplyToCheckIn(checkInId, reply).catch(e => console.warn('[coach] reply failed', e))
   }, [])
 
+  const updateProgram = useCallback((clientId: string, days: TrainingDay[]) => {
+    setData(d => ({ ...d, clients: d.clients.map(c => c.id !== clientId ? c : { ...c, program: days }) }))
+    cloudUpdateProgram(clientId, days).catch(e => console.warn('[coach] program update failed', e))
+  }, [])
+
   const value: CoachStore = {
     data, loading, authed: true,
     login: () => true, logout: () => {},
-    getClient, replyToCheckIn, updateClientTargets, updateClient,
+    getClient, replyToCheckIn, updateClientTargets, updateClient, updateProgram,
     resetCoach: () => {}, refresh,
   }
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
@@ -119,11 +125,14 @@ function LocalCoachProvider({ children }: { children: ReactNode }) {
   const updateClient = useCallback((clientId: string, patch: Partial<Pick<CoachClient, 'goal' | 'goalWeight' | 'splitName'>>) => {
     setData(d => ({ ...d, clients: d.clients.map(c => c.id !== clientId ? c : { ...c, ...patch }) }))
   }, [])
+  const updateProgram = useCallback((clientId: string, days: TrainingDay[]) => {
+    setData(d => ({ ...d, clients: d.clients.map(c => c.id !== clientId ? c : { ...c, program: days }) }))
+  }, [])
   const resetCoach = useCallback(() => setData(coachSeed()), [])
 
   const value: CoachStore = {
     data, loading: false, authed, login, logout, getClient,
-    replyToCheckIn, updateClientTargets, updateClient, resetCoach, refresh: () => {},
+    replyToCheckIn, updateClientTargets, updateClient, updateProgram, resetCoach, refresh: () => {},
   }
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }
