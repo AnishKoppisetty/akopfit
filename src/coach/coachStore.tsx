@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react'
-import { CoachData } from './types'
+import { CoachData, CoachClient } from './types'
 import { Targets } from '../types'
 import { coachSeed } from './seed'
 
@@ -24,6 +24,7 @@ interface CoachStore {
   getClient: (id: string) => CoachData['clients'][number] | undefined
   replyToCheckIn: (clientId: string, checkInId: string, reply: string) => void
   updateClientTargets: (clientId: string, targets: Partial<Targets>) => void
+  updateClient: (clientId: string, patch: Partial<Pick<CoachClient, 'goal' | 'goalWeight' | 'splitName'>>) => void
   resetCoach: () => void
 }
 
@@ -75,9 +76,16 @@ export function CoachProvider({ children }: { children: ReactNode }) {
     }))
   }, [])
 
+  const updateClient = useCallback((clientId: string, patch: Partial<Pick<CoachClient, 'goal' | 'goalWeight' | 'splitName'>>) => {
+    setData(d => ({
+      ...d,
+      clients: d.clients.map(c => c.id !== clientId ? c : { ...c, ...patch }),
+    }))
+  }, [])
+
   const resetCoach = useCallback(() => setData(coachSeed()), [])
 
-  const value: CoachStore = { data, authed, login, logout, getClient, replyToCheckIn, updateClientTargets, resetCoach }
+  const value: CoachStore = { data, authed, login, logout, getClient, replyToCheckIn, updateClientTargets, updateClient, resetCoach }
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }
 
