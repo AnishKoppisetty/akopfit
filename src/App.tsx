@@ -6,8 +6,21 @@ import Training from './pages/Training'
 import Progress from './pages/Progress'
 import CheckIn from './pages/CheckIn'
 import Settings from './pages/Settings'
+import CoachApp from './coach/CoachApp'
 
 export default function App() {
+  return (
+    <Routes>
+      {/* Coach portal (own shell + auth) */}
+      <Route path="/coach/*" element={<CoachApp />} />
+
+      {/* Client app */}
+      <Route path="/*" element={<ClientApp />} />
+    </Routes>
+  )
+}
+
+function ClientApp() {
   return (
     <Layout>
       <Routes>

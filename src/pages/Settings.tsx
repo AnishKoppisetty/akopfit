@@ -81,7 +81,8 @@ export default function Settings() {
         </Button>
       </Card>
 
-      <p className="text-center text-[11px] text-muted mt-6">AkopFit · v0.1 · made for {profile.coachName}</p>
+      <a href="/coach" className="block text-center text-xs text-muted underline mt-6">Coach portal →</a>
+      <p className="text-center text-[11px] text-muted mt-2">AkopFit · v0.1 · made for {profile.coachName}</p>
     </div>
   )
 }
