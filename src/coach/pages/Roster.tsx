@@ -29,6 +29,15 @@ export default function Roster() {
       </div>
 
       <h2 className="text-sm font-semibold uppercase tracking-wider text-muted mb-3">Your clients</h2>
+      {clients.length === 0 && (
+        <Card className="text-center py-10">
+          <div className="text-3xl mb-2">👋</div>
+          <div className="font-semibold mb-1">No clients yet</div>
+          <p className="text-sm text-muted px-4">
+            Share your app link and have clients sign in with their email — they’ll show up here automatically.
+          </p>
+        </Card>
+      )}
       <div className="space-y-2.5">
         {sorted.map(({ c, s }) => (
           <Link key={c.id} to={`/coach/client/${c.id}`}>

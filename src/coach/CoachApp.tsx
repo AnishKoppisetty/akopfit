@@ -5,6 +5,8 @@ import CoachLogin from './pages/CoachLogin'
 import Roster from './pages/Roster'
 import CheckInInbox from './pages/CheckInInbox'
 import ClientDetail from './pages/ClientDetail'
+import { useAuth } from '../auth/AuthProvider'
+import { Button } from '../components/ui'
 
 export default function CoachApp() {
   return (
@@ -15,8 +17,17 @@ export default function CoachApp() {
 }
 
 function CoachRoutes() {
+  const { configured, isCoach, signOut } = useAuth()
   const { authed } = useCoach()
-  if (!authed) return <CoachLogin />
+
+  // Real auth: only the coach role may enter the portal.
+  if (configured) {
+    if (!isCoach) return <NotCoach onSignOut={signOut} />
+  } else if (!authed) {
+    // Local demo mode (no backend): keep the passcode gate.
+    return <CoachLogin />
+  }
+
   return (
     <CoachLayout>
       <Routes>
@@ -26,5 +37,18 @@ function CoachRoutes() {
         <Route path="*" element={<Roster />} />
       </Routes>
     </CoachLayout>
+  )
+}
+
+function NotCoach({ onSignOut }: { onSignOut: () => void }) {
+  return (
+    <div className="min-h-full max-w-sm mx-auto px-6 flex flex-col justify-center text-center pt-safe">
+      <h1 className="text-2xl font-bold mb-2">Coach access only</h1>
+      <p className="text-sm text-muted mb-8">
+        This area is for coaches. You’re signed in as a client — head back to your app.
+      </p>
+      <a href="/" className="mb-3"><Button className="w-full">Go to my app</Button></a>
+      <button onClick={onSignOut} className="text-sm text-muted underline">Sign out</button>
+    </div>
   )
 }

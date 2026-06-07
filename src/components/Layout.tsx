@@ -1,6 +1,7 @@
 import { ReactNode } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { HomeIcon, FlameIcon, DumbbellIcon, ChartIcon, CameraIcon } from './icons'
+import { useStore } from '../store'
 
 const tabs = [
   { to: '/', label: 'Home', Icon: HomeIcon },
@@ -12,10 +13,16 @@ const tabs = [
 
 export function Layout({ children }: { children: ReactNode }) {
   const { pathname } = useLocation()
+  const { loading } = useStore()
   return (
     <div className="min-h-full flex flex-col max-w-md mx-auto relative">
       <main className="flex-1 px-5 pt-safe pb-28">
-        <div className="pt-6">{children}</div>
+        {loading
+          ? <div className="flex flex-col items-center justify-center h-[70vh] gap-3 text-muted text-sm">
+              <div className="h-8 w-8 rounded-full border-2 border-ink-600 border-t-accent animate-spin" />
+              Loading…
+            </div>
+          : <div className="pt-6">{children}</div>}
       </main>
 
       <nav className="fixed bottom-0 left-0 right-0 z-30 bg-ink-800/90 backdrop-blur-xl border-t border-ink-600/60 pb-safe">
