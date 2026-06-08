@@ -46,3 +46,6 @@ export const MoonIcon = (p: P) => (
 export const BoltIcon = (p: P) => (
   <svg {...base(p)}><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z" /></svg>
 )
+export const GripIcon = (p: P) => (
+  <svg {...base(p)}><circle cx="9" cy="6" r="1" /><circle cx="9" cy="12" r="1" /><circle cx="9" cy="18" r="1" /><circle cx="15" cy="6" r="1" /><circle cx="15" cy="12" r="1" /><circle cx="15" cy="18" r="1" /></svg>
+)

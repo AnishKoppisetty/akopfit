@@ -5,6 +5,10 @@ import { CheckIcon, DumbbellIcon, ChevronRight } from '../components/icons'
 import { todayISO, todaySplitIndex } from '../utils'
 import { Exercise, SetEntry } from '../types'
 
+function presc(ex: Exercise): string {
+  return `${ex.sets} × ${ex.reps}${ex.rpe != null ? ` · RPE ${ex.rpe}` : ''}`
+}
+
 export default function Training() {
   const { data } = useStore()
   const { split } = data
@@ -98,12 +102,13 @@ function ExerciseRow({ index, exercise, loggable, date }: { index: number; exerc
         <div className="flex-1 min-w-0 text-left">
           <div className="font-medium truncate">{exercise.name}</div>
           <div className="text-xs text-muted">
-            {loggable && loggedCount > 0 ? `${loggedCount}/${exercise.sets} sets logged` : `${exercise.sets} × ${exercise.reps}`}
+            {loggable && loggedCount > 0 ? `${loggedCount}/${exercise.sets} sets logged` : presc(exercise)}
           </div>
+          {exercise.notes && <div className="text-[11px] text-muted/80 italic truncate mt-0.5">{exercise.notes}</div>}
         </div>
         {loggable
-          ? <ChevronRight className={`text-muted transition ${open ? 'rotate-90' : ''}`} />
-          : <div className="text-right shrink-0"><div className="font-semibold tabular-nums">{exercise.sets} × {exercise.reps}</div><div className="text-[11px] text-muted">sets × reps</div></div>}
+          ? <ChevronRight className={`text-muted transition shrink-0 ${open ? 'rotate-90' : ''}`} />
+          : <div className="text-right shrink-0"><div className="font-semibold tabular-nums">{exercise.sets} × {exercise.reps}</div><div className="text-[11px] text-muted">{exercise.rpe != null ? `RPE ${exercise.rpe}` : 'sets × reps'}</div></div>}
       </button>
 
       {loggable && open && (

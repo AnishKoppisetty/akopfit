@@ -21,9 +21,11 @@ export interface Targets {
 }
 
 export interface Exercise {
+  id?: string // stable id for reordering (editor-assigned)
   name: string
   sets: number
   reps: string // e.g. "8-10"
+  rpe?: number // 0-10
   notes?: string
 }
 
