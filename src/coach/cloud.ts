@@ -7,7 +7,7 @@ import { seedData } from '../seed'
 const DEFAULT_PROGRAM = seedData().split
 
 // ---- DB row shapes ----
-interface ProfileRow { id: string; name: string | null; email: string | null; unit: 'lb' | 'kg'; start_weight: number | null; created_at: string }
+interface ProfileRow { id: string; name: string | null; email: string | null; unit: 'lb' | 'kg'; start_weight: number | null; created_at: string; status: 'pending' | 'active' | 'removed'; age: number | null; sex: string | null; height_cm: number | null }
 interface PlanRow { user_id: string; goal: 'cut' | 'maintain' | 'bulk'; goal_weight: number | null; split_name: string; calories: number; protein: number; carbs: number; fat: number; steps: number; cardio_minutes: number; water: number }
 interface WeightRow { user_id: string; date: string; weight: number }
 interface CheckInRow { id: string; user_id: string; date: string; weight: number | null; message: string | null; energy: number | null; sleep: number | null; hunger: number | null; adherence: number | null; coach_reply: string | null; photo_paths: string[] }
@@ -25,7 +25,7 @@ async function signPhotos(paths: string[]): Promise<string[]> {
 export async function fetchCoachData(coachName: string): Promise<CoachData> {
   const today = todayISO()
   const [profiles, plans, programs, weights, checkIns, daily, foods] = await Promise.all([
-    supabase.from('profiles').select('id, name, email, unit, start_weight, created_at').eq('role', 'client'),
+    supabase.from('profiles').select('id, name, email, unit, start_weight, created_at, status, age, sex, height_cm').eq('role', 'client'),
     supabase.from('plans').select('*'),
     supabase.from('programs').select('user_id, days'),
     supabase.from('weight_logs').select('user_id, date, weight').order('date', { ascending: true }),
@@ -65,7 +65,8 @@ export async function fetchCoachData(coachName: string): Promise<CoachData> {
     foodBy.set(f.user_id, cur)
   })
 
-  const profileRows = (profiles.data as ProfileRow[] | null) ?? []
+  // Hide removed clients from the dashboard.
+  const profileRows = ((profiles.data as ProfileRow[] | null) ?? []).filter(p => p.status !== 'removed')
 
   const clients: CoachClient[] = await Promise.all(profileRows.map(async (p): Promise<CoachClient> => {
     const plan = planBy.get(p.id)
@@ -93,6 +94,10 @@ export async function fetchCoachData(coachName: string): Promise<CoachData> {
     return {
       id: p.id,
       name: p.name || p.email || 'Client',
+      status: p.status,
+      age: p.age,
+      sex: p.sex,
+      heightCm: p.height_cm,
       goal: plan?.goal ?? 'maintain',
       unit: p.unit ?? 'lb',
       startWeight,
@@ -137,6 +142,11 @@ export async function cloudUpdatePlan(userId: string, patch: Partial<Targets & {
 
 export async function cloudReplyToCheckIn(checkInId: string, reply: string) {
   const { error } = await supabase.from('check_ins').update({ coach_reply: reply }).eq('id', checkInId)
+  if (error) throw error
+}
+
+export async function cloudSetClientStatus(userId: string, status: 'pending' | 'active' | 'removed') {
+  const { error } = await supabase.from('profiles').update({ status }).eq('id', userId)
   if (error) throw error
 }
 

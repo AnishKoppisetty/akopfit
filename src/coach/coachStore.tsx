@@ -3,7 +3,9 @@ import { CoachData, CoachClient } from './types'
 import { Targets, TrainingDay } from '../types'
 import { coachSeed } from './seed'
 import { useAuth } from '../auth/AuthProvider'
-import { fetchCoachData, cloudUpdatePlan, cloudReplyToCheckIn, cloudUpdateProgram } from './cloud'
+import { fetchCoachData, cloudUpdatePlan, cloudReplyToCheckIn, cloudUpdateProgram, cloudSetClientStatus } from './cloud'
+
+type ClientStatus = 'pending' | 'active' | 'removed'
 
 const STORAGE_KEY = 'akopfit:coach:v1'
 const AUTH_KEY = 'akopfit:coach:auth'
@@ -20,6 +22,7 @@ interface CoachStore {
   updateClientTargets: (clientId: string, targets: Partial<Targets>) => void
   updateClient: (clientId: string, patch: Partial<Pick<CoachClient, 'goal' | 'goalWeight' | 'splitName'>>) => void
   updateProgram: (clientId: string, days: TrainingDay[]) => void
+  setClientStatus: (clientId: string, status: ClientStatus) => void
   resetCoach: () => void
   refresh: () => void
 }
@@ -79,10 +82,20 @@ function CloudCoachProvider({ coachName, children }: { coachName: string; childr
     cloudUpdateProgram(clientId, days).catch(e => console.warn('[coach] program update failed', e))
   }, [])
 
+  const setClientStatus = useCallback((clientId: string, status: ClientStatus) => {
+    setData(d => ({
+      ...d,
+      clients: status === 'removed'
+        ? d.clients.filter(c => c.id !== clientId)
+        : d.clients.map(c => c.id !== clientId ? c : { ...c, status }),
+    }))
+    cloudSetClientStatus(clientId, status).catch(e => console.warn('[coach] status update failed', e))
+  }, [])
+
   const value: CoachStore = {
     data, loading, authed: true,
     login: () => true, logout: () => {},
-    getClient, replyToCheckIn, updateClientTargets, updateClient, updateProgram,
+    getClient, replyToCheckIn, updateClientTargets, updateClient, updateProgram, setClientStatus,
     resetCoach: () => {}, refresh,
   }
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
@@ -128,11 +141,17 @@ function LocalCoachProvider({ children }: { children: ReactNode }) {
   const updateProgram = useCallback((clientId: string, days: TrainingDay[]) => {
     setData(d => ({ ...d, clients: d.clients.map(c => c.id !== clientId ? c : { ...c, program: days }) }))
   }, [])
+  const setClientStatus = useCallback((clientId: string, status: ClientStatus) => {
+    setData(d => ({
+      ...d,
+      clients: status === 'removed' ? d.clients.filter(c => c.id !== clientId) : d.clients.map(c => c.id !== clientId ? c : { ...c, status }),
+    }))
+  }, [])
   const resetCoach = useCallback(() => setData(coachSeed()), [])
 
   const value: CoachStore = {
     data, loading: false, authed, login, logout, getClient,
-    replyToCheckIn, updateClientTargets, updateClient, updateProgram, resetCoach, refresh: () => {},
+    replyToCheckIn, updateClientTargets, updateClient, updateProgram, setClientStatus, resetCoach, refresh: () => {},
   }
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useNavigate } from 'react-router-dom'
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, ReferenceLine } from 'recharts'
 import { useCoach } from '../coachStore'
 import { Card, ProgressBar, Button, Field, Input } from '../../components/ui'
@@ -13,7 +13,8 @@ import { Goal } from '../../types'
 
 export default function ClientDetail() {
   const { id } = useParams()
-  const { getClient } = useCoach()
+  const { getClient, setClientStatus } = useCoach()
+  const navigate = useNavigate()
   const c = getClient(id ?? '')
   const [editing, setEditing] = useState(false)
 
@@ -34,13 +35,23 @@ export default function ClientDetail() {
     <div>
       <Link to="/coach" className="text-sm text-muted inline-flex items-center gap-1 mb-4">← Roster</Link>
 
-      <div className="flex items-center gap-3 mb-5">
+      <div className="flex items-center gap-3 mb-4">
         <Avatar name={c.name} size={56} />
         <div>
           <h1 className="text-2xl font-bold leading-tight">{c.name}</h1>
-          <div className="text-sm text-muted">{goalLabel(c.goal)} · joined {c.joinedDaysAgo}d ago</div>
+          <div className="text-sm text-muted">{statLine(c)}</div>
         </div>
       </div>
+
+      {c.status === 'pending' && (
+        <Card className="mb-4 border-accent/40 bg-accent/10">
+          <p className="text-sm font-medium mb-3">This client is awaiting your approval.</p>
+          <div className="flex gap-2">
+            <Button className="flex-1" onClick={() => setClientStatus(c.id, 'active')}>Approve</Button>
+            <Button variant="outline" onClick={() => { if (confirm(`Decline ${c.name}?`)) { setClientStatus(c.id, 'removed'); navigate('/coach') } }}>Decline</Button>
+          </div>
+        </Card>
+      )}
 
       <div className="grid grid-cols-3 gap-3 mb-4">
         <MiniStat value={`${s.currentWeight}`} unit={c.unit} label="Current" />
@@ -130,9 +141,37 @@ export default function ClientDetail() {
         </div>
       )}
 
+      {c.status === 'active' && (
+        <div className="mt-8">
+          <Button
+            variant="outline"
+            className="w-full text-rose-400 border-rose-400/40"
+            onClick={() => { if (confirm(`Remove ${c.name}? They’ll lose access (their data is kept).`)) { setClientStatus(c.id, 'removed'); navigate('/coach') } }}
+          >
+            Remove client
+          </Button>
+        </div>
+      )}
+
       {editing && <EditPlanSheet client={c} onClose={() => setEditing(false)} />}
     </div>
   )
+}
+
+function statLine(c: CoachClient): string {
+  const bits: string[] = []
+  if (c.sex) bits.push(c.sex)
+  if (c.age) bits.push(`${c.age}y`)
+  if (c.heightCm) bits.push(formatHeight(c.heightCm, c.unit))
+  bits.push(goalLabel(c.goal))
+  bits.push(`joined ${c.joinedDaysAgo}d ago`)
+  return bits.join(' · ')
+}
+
+function formatHeight(cm: number, unit: string): string {
+  if (unit === 'kg') return `${cm} cm`
+  const totalIn = Math.round(cm / 2.54)
+  return `${Math.floor(totalIn / 12)}'${totalIn % 12}"`
 }
 
 const GOALS: { key: Goal; label: string }[] = [

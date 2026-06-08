@@ -1,19 +1,18 @@
 import { Link } from 'react-router-dom'
 import { useCoach } from '../coachStore'
-import { Card } from '../../components/ui'
+import { Card, Button } from '../../components/ui'
 import { ChevronRight } from '../../components/icons'
 import { clientStatus, initials, goalLabel } from '../derive'
-import { CheckInState } from '../types'
+import { CheckInState, CoachClient } from '../types'
 
 export default function Roster() {
-  const { data } = useCoach()
-  const clients = data.clients
+  const { data, setClientStatus } = useCoach()
+  const pending = data.clients.filter(c => c.status === 'pending')
+  const active = data.clients.filter(c => c.status === 'active')
 
-  const statuses = clients.map(c => ({ c, s: clientStatus(c) }))
+  const statuses = active.map(c => ({ c, s: clientStatus(c) }))
   const needsReply = statuses.filter(x => x.s.checkInState === 'needs-reply').length
-  const offTrack = statuses.filter(x => !x.s.onTrack).length
 
-  // sort: needs-reply first, then off-track, then by name
   const order: Record<CheckInState, number> = { 'needs-reply': 0, 'overdue': 1, 'reviewed': 2, 'none': 1 }
   const sorted = [...statuses].sort((a, b) => {
     const d = order[a.s.checkInState] - order[b.s.checkInState]
@@ -23,18 +22,42 @@ export default function Roster() {
   return (
     <div>
       <div className="grid grid-cols-3 gap-3 mb-5">
-        <SummaryStat value={clients.length} label="Clients" />
+        <SummaryStat value={active.length} label="Clients" />
+        <SummaryStat value={pending.length} label="Pending" accent={pending.length > 0} />
         <SummaryStat value={needsReply} label="Need reply" accent={needsReply > 0} />
-        <SummaryStat value={offTrack} label="Off track" warn={offTrack > 0} />
       </div>
 
+      {/* Pending approval */}
+      {pending.length > 0 && (
+        <>
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-accent mb-3">Pending approval</h2>
+          <div className="space-y-2.5 mb-6">
+            {pending.map(c => (
+              <Card key={c.id}>
+                <div className="flex items-center gap-3 mb-3">
+                  <Avatar name={c.name} />
+                  <div className="flex-1 min-w-0">
+                    <Link to={`/coach/client/${c.id}`} className="font-semibold truncate block">{c.name}</Link>
+                    <div className="text-xs text-muted truncate">{statLine(c)}</div>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button className="flex-1" onClick={() => setClientStatus(c.id, 'active')}>Approve</Button>
+                  <Button variant="outline" onClick={() => { if (confirm(`Decline ${c.name}?`)) setClientStatus(c.id, 'removed') }}>Decline</Button>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </>
+      )}
+
       <h2 className="text-sm font-semibold uppercase tracking-wider text-muted mb-3">Your clients</h2>
-      {clients.length === 0 && (
+      {active.length === 0 && (
         <Card className="text-center py-10">
           <div className="text-3xl mb-2">👋</div>
-          <div className="font-semibold mb-1">No clients yet</div>
+          <div className="font-semibold mb-1">No active clients yet</div>
           <p className="text-sm text-muted px-4">
-            Share your app link and have clients sign in with their email — they’ll show up here automatically.
+            Share your app link and have clients sign up — they’ll appear in “Pending approval” for you to approve.
           </p>
         </Card>
       )}
@@ -48,9 +71,7 @@ export default function Roster() {
                   <span className="font-semibold truncate">{c.name}</span>
                   <StatusDot state={s.checkInState} />
                 </div>
-                <div className="text-xs text-muted truncate">
-                  {goalLabel(c.goal)} · {c.splitName}
-                </div>
+                <div className="text-xs text-muted truncate">{goalLabel(c.goal)} · {c.splitName}</div>
               </div>
               <div className="text-right shrink-0">
                 <div className="font-semibold tabular-nums leading-tight">{s.currentWeight}<span className="text-xs text-muted font-normal"> {c.unit}</span></div>
@@ -65,6 +86,14 @@ export default function Roster() {
       </div>
     </div>
   )
+}
+
+function statLine(c: CoachClient): string {
+  const bits: string[] = []
+  if (c.sex) bits.push(c.sex)
+  if (c.age) bits.push(`${c.age}y`)
+  bits.push(`${goalLabel(c.goal)}`)
+  return bits.join(' · ')
 }
 
 function SummaryStat({ value, label, accent, warn }: { value: number; label: string; accent?: boolean; warn?: boolean }) {

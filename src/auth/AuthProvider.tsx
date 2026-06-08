@@ -5,11 +5,15 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase'
 export interface CloudProfile {
   id: string
   role: 'client' | 'coach'
+  status: 'pending' | 'active' | 'removed'
+  onboarded: boolean
   name: string | null
   email: string | null
   unit: 'lb' | 'kg'
   height_cm: number | null
   start_weight: number | null
+  age: number | null
+  sex: string | null
 }
 
 interface AuthState {
@@ -21,6 +25,7 @@ interface AuthState {
   signInWithEmail: (email: string) => Promise<{ error: string | null }>
   signInWithPassword: (email: string, password: string) => Promise<{ error: string | null }>
   signUpWithPassword: (email: string, password: string, name: string) => Promise<{ error: string | null }>
+  updatePassword: (newPassword: string) => Promise<{ error: string | null }>
   signOut: () => Promise<void>
   refreshProfile: () => Promise<void>
 }
@@ -35,7 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loadProfile = useCallback(async (userId: string) => {
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, role, name, email, unit, height_cm, start_weight')
+      .select('id, role, status, onboarded, name, email, unit, height_cm, start_weight, age, sex')
       .eq('id', userId)
       .maybeSingle()
     if (error) {
@@ -87,6 +92,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error?.message ?? null }
   }, [])
 
+  const updatePassword = useCallback(async (newPassword: string) => {
+    const { error } = await supabase.auth.updateUser({ password: newPassword })
+    return { error: error?.message ?? null }
+  }, [])
+
   const signOut = useCallback(async () => {
     await supabase.auth.signOut()
     setProfile(null)
@@ -105,6 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signInWithEmail,
     signInWithPassword,
     signUpWithPassword,
+    updatePassword,
     signOut,
     refreshProfile,
   }

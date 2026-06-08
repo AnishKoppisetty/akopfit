@@ -12,6 +12,10 @@ export interface TodaySnapshot {
 export interface CoachClient {
   id: string
   name: string
+  status: 'pending' | 'active' | 'removed'
+  age: number | null
+  sex: string | null
+  heightCm: number | null
   goal: Goal
   unit: 'lb' | 'kg'
   startWeight: number

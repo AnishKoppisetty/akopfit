@@ -10,7 +10,7 @@ function w(weights: [number, number][]): { date: string; weight: number }[] {
 }
 
 export function coachSeed(): CoachData {
-  const clients: Omit<CoachClient, 'program'>[] = [
+  const clients: Omit<CoachClient, 'program' | 'status' | 'age' | 'sex' | 'heightCm'>[] = [
       {
         id: 'alex',
         name: 'Alex Rivera',
@@ -96,6 +96,6 @@ export function coachSeed(): CoachData {
   ]
   return {
     coachName: 'Coach Akop',
-    clients: clients.map(c => ({ ...c, program: DEFAULT_PROGRAM })),
+    clients: clients.map(c => ({ ...c, program: DEFAULT_PROGRAM, status: 'active' as const, age: 28, sex: 'Male', heightCm: 178 })),
   }
 }

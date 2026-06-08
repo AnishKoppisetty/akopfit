@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useStore } from '../store'
 import { useAuth } from '../auth/AuthProvider'
 import { Card, PageHeader, SectionTitle, Button, Field, Input } from '../components/ui'
@@ -105,6 +106,7 @@ export default function Settings() {
             </div>
             <Button variant="outline" onClick={() => signOut()}>Sign out</Button>
           </Card>
+          <ChangePassword />
         </>
       ) : (
         <>
@@ -130,5 +132,36 @@ function PlanRow({ label, value }: { label: string; value: string }) {
       <span className="text-muted">{label}</span>
       <span className="font-semibold tabular-nums">{value}</span>
     </div>
+  )
+}
+
+function ChangePassword() {
+  const { updatePassword } = useAuth()
+  const [pw, setPw] = useState('')
+  const [confirm, setConfirm] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
+
+  async function save() {
+    setMsg(null)
+    if (pw.length < 6) { setMsg({ ok: false, text: 'Password must be at least 6 characters.' }); return }
+    if (pw !== confirm) { setMsg({ ok: false, text: 'Passwords don’t match.' }); return }
+    setBusy(true)
+    const { error } = await updatePassword(pw)
+    setBusy(false)
+    if (error) setMsg({ ok: false, text: error })
+    else { setMsg({ ok: true, text: 'Password updated ✓' }); setPw(''); setConfirm('') }
+  }
+
+  return (
+    <>
+      <SectionTitle>Change password</SectionTitle>
+      <Card className="space-y-3">
+        <Field label="New password"><Input type="password" autoComplete="new-password" value={pw} onChange={e => setPw(e.target.value)} placeholder="6+ characters" /></Field>
+        <Field label="Confirm new password"><Input type="password" autoComplete="new-password" value={confirm} onChange={e => setConfirm(e.target.value)} placeholder="Re-enter password" /></Field>
+        {msg && <p className={`text-sm ${msg.ok ? 'text-accent' : 'text-rose-400'}`}>{msg.text}</p>}
+        <Button className="w-full" onClick={save} disabled={busy || !pw || !confirm}>{busy ? 'Updating…' : 'Update password'}</Button>
+      </Card>
+    </>
   )
 }

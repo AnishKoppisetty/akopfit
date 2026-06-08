@@ -9,6 +9,8 @@ import Settings from './pages/Settings'
 import CoachApp from './coach/CoachApp'
 import { useAuth } from './auth/AuthProvider'
 import Login from './auth/Login'
+import Onboarding from './auth/Onboarding'
+import { AwaitingApproval, Removed } from './auth/StatusScreens'
 import { DumbbellIcon } from './components/icons'
 
 export default function App() {
@@ -29,9 +31,17 @@ export default function App() {
 }
 
 function ClientApp() {
-  const { configured, isCoach } = useAuth()
-  // Coaches land on their dashboard by default.
-  if (configured && isCoach) return <Navigate to="/coach" replace />
+  const { configured, isCoach, profile } = useAuth()
+  if (configured) {
+    // Coaches land on their dashboard by default.
+    if (isCoach) return <Navigate to="/coach" replace />
+    if (!profile) return <Splash />
+    if (profile.role === 'client') {
+      if (!profile.onboarded) return <Onboarding />
+      if (profile.status === 'pending') return <AwaitingApproval />
+      if (profile.status === 'removed') return <Removed />
+    }
+  }
   return (
     <Layout>
       <Routes>
