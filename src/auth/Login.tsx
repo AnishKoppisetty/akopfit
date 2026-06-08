@@ -3,23 +3,36 @@ import { useAuth } from './AuthProvider'
 import { Button, Input } from '../components/ui'
 import { DumbbellIcon } from '../components/icons'
 
+type Mode = 'signin' | 'signup'
+
 export default function Login() {
-  const { signInWithEmail } = useAuth()
+  const { signInWithPassword, signUpWithPassword } = useAuth()
+  const [mode, setMode] = useState<Mode>('signin')
+  const [name, setName] = useState('')
   const [email, setEmail] = useState('')
-  const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
+  const [password, setPassword] = useState('')
+  const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
-    if (!email.trim()) return
-    setStatus('sending')
-    const { error } = await signInWithEmail(email)
-    if (error) {
-      setError(error)
-      setStatus('error')
-    } else {
-      setStatus('sent')
+    setError('')
+    if (!email.trim() || !password) return
+    if (mode === 'signup' && password.length < 6) {
+      setError('Password must be at least 6 characters.')
+      return
     }
+    setBusy(true)
+    const { error } = mode === 'signin'
+      ? await signInWithPassword(email, password)
+      : await signUpWithPassword(email, password, name)
+    setBusy(false)
+    if (error) setError(prettyError(error, mode))
+    // on success, AuthProvider's auth-state listener routes the user
+  }
+
+  function switchMode(m: Mode) {
+    setMode(m); setError('')
   }
 
   return (
@@ -28,44 +41,67 @@ export default function Login() {
         <DumbbellIcon className="text-accent" width={32} height={32} />
       </div>
       <h1 className="text-3xl font-bold mb-1">AkopFit</h1>
+      <p className="text-sm text-muted mb-7">
+        {mode === 'signin' ? 'Sign in to your account.' : 'Create your account to get started.'}
+      </p>
 
-      {status === 'sent' ? (
-        <div className="mt-4">
-          <p className="text-lg font-semibold mb-2">Check your email 📬</p>
-          <p className="text-sm text-muted leading-relaxed">
-            We sent a sign-in link to <span className="text-white">{email}</span>.
-            Tap it on this device to log in. You can close this page.
-          </p>
-          <button
-            onClick={() => { setStatus('idle'); setEmail('') }}
-            className="text-sm text-accent underline mt-6"
-          >
-            Use a different email
-          </button>
-        </div>
-      ) : (
-        <>
-          <p className="text-sm text-muted mb-8">Enter your email and we’ll send you a one-tap sign-in link — no password needed.</p>
-          <form onSubmit={submit} className="space-y-3">
-            <Input
-              type="email"
-              inputMode="email"
-              autoComplete="email"
-              placeholder="you@email.com"
-              value={email}
-              onChange={e => { setEmail(e.target.value); setStatus('idle') }}
-              autoFocus
-            />
-            {status === 'error' && <p className="text-sm text-rose-400">{error}</p>}
-            <Button type="submit" className="w-full" disabled={status === 'sending' || !email.trim()}>
-              {status === 'sending' ? 'Sending…' : 'Send sign-in link'}
-            </Button>
-          </form>
-          <p className="text-xs text-muted mt-6 text-center">
-            New here? Just enter your email — your account is created automatically.
-          </p>
-        </>
-      )}
+      {/* Segmented toggle */}
+      <div className="flex gap-1 bg-ink-700 rounded-xl p-1 mb-5">
+        <TabBtn active={mode === 'signin'} onClick={() => switchMode('signin')}>Sign in</TabBtn>
+        <TabBtn active={mode === 'signup'} onClick={() => switchMode('signup')}>Create account</TabBtn>
+      </div>
+
+      <form onSubmit={submit} className="space-y-3">
+        {mode === 'signup' && (
+          <Input
+            type="text" autoComplete="name" placeholder="Your name"
+            value={name} onChange={e => setName(e.target.value)}
+          />
+        )}
+        <Input
+          type="email" inputMode="email" autoComplete="email" placeholder="you@email.com"
+          value={email} onChange={e => { setEmail(e.target.value); setError('') }}
+        />
+        <Input
+          type="password"
+          autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
+          placeholder={mode === 'signup' ? 'Password (6+ characters)' : 'Password'}
+          value={password} onChange={e => { setPassword(e.target.value); setError('') }}
+        />
+        {error && <p className="text-sm text-rose-400">{error}</p>}
+        <Button type="submit" className="w-full" disabled={busy || !email.trim() || !password}>
+          {busy ? 'Please wait…' : mode === 'signin' ? 'Sign in' : 'Create account'}
+        </Button>
+      </form>
+
+      <p className="text-xs text-muted mt-6 text-center">
+        {mode === 'signin' ? (
+          <>New here? <button onClick={() => switchMode('signup')} className="text-accent underline">Create an account</button></>
+        ) : (
+          <>Already have an account? <button onClick={() => switchMode('signin')} className="text-accent underline">Sign in</button></>
+        )}
+      </p>
     </div>
   )
+}
+
+function TabBtn({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex-1 py-2 rounded-lg text-sm font-semibold transition ${active ? 'bg-accent text-ink-900' : 'text-muted'}`}
+    >
+      {children}
+    </button>
+  )
+}
+
+function prettyError(msg: string, mode: Mode): string {
+  const m = msg.toLowerCase()
+  if (m.includes('invalid login')) return 'Wrong email or password.'
+  if (m.includes('already registered') || m.includes('already been registered')) return 'That email already has an account — try signing in.'
+  if (m.includes('weak') || m.includes('at least')) return 'Password must be at least 6 characters.'
+  if (m.includes('email') && mode === 'signup' && m.includes('confirm')) return 'Account created — you can now sign in.'
+  return msg
 }

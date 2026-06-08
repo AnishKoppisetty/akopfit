@@ -56,4 +56,13 @@ end;
 $$;
 
 -- Live updates so a client sees program changes without a manual refresh.
-alter publication supabase_realtime add table public.programs;
+-- (idempotent — safe to re-run)
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'programs'
+  ) then
+    alter publication supabase_realtime add table public.programs;
+  end if;
+end $$;

@@ -19,6 +19,8 @@ interface AuthState {
   profile: CloudProfile | null
   isCoach: boolean
   signInWithEmail: (email: string) => Promise<{ error: string | null }>
+  signInWithPassword: (email: string, password: string) => Promise<{ error: string | null }>
+  signUpWithPassword: (email: string, password: string, name: string) => Promise<{ error: string | null }>
   signOut: () => Promise<void>
   refreshProfile: () => Promise<void>
 }
@@ -71,6 +73,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error?.message ?? null }
   }, [])
 
+  const signInWithPassword = useCallback(async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
+    return { error: error?.message ?? null }
+  }, [])
+
+  const signUpWithPassword = useCallback(async (email: string, password: string, name: string) => {
+    const { error } = await supabase.auth.signUp({
+      email: email.trim(),
+      password,
+      options: { data: { name: name.trim() } },
+    })
+    return { error: error?.message ?? null }
+  }, [])
+
   const signOut = useCallback(async () => {
     await supabase.auth.signOut()
     setProfile(null)
@@ -87,6 +103,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     profile,
     isCoach: profile?.role === 'coach',
     signInWithEmail,
+    signInWithPassword,
+    signUpWithPassword,
     signOut,
     refreshProfile,
   }
