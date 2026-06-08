@@ -9,6 +9,7 @@ export default function Roster() {
   const { data, setClientStatus } = useCoach()
   const pending = data.clients.filter(c => c.status === 'pending')
   const active = data.clients.filter(c => c.status === 'active')
+  const removedCount = data.clients.filter(c => c.status === 'removed').length
 
   const statuses = active.map(c => ({ c, s: clientStatus(c) }))
   const needsReply = statuses.filter(x => x.s.checkInState === 'needs-reply').length
@@ -84,6 +85,12 @@ export default function Roster() {
           </Link>
         ))}
       </div>
+
+      {removedCount > 0 && (
+        <Link to="/coach/removed" className="block text-center text-xs text-muted underline mt-6">
+          Removed clients ({removedCount}) →
+        </Link>
+      )}
     </div>
   )
 }

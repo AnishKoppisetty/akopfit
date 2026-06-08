@@ -83,12 +83,7 @@ function CloudCoachProvider({ coachName, children }: { coachName: string; childr
   }, [])
 
   const setClientStatus = useCallback((clientId: string, status: ClientStatus) => {
-    setData(d => ({
-      ...d,
-      clients: status === 'removed'
-        ? d.clients.filter(c => c.id !== clientId)
-        : d.clients.map(c => c.id !== clientId ? c : { ...c, status }),
-    }))
+    setData(d => ({ ...d, clients: d.clients.map(c => c.id !== clientId ? c : { ...c, status }) }))
     cloudSetClientStatus(clientId, status).catch(e => console.warn('[coach] status update failed', e))
   }, [])
 
@@ -142,10 +137,7 @@ function LocalCoachProvider({ children }: { children: ReactNode }) {
     setData(d => ({ ...d, clients: d.clients.map(c => c.id !== clientId ? c : { ...c, program: days }) }))
   }, [])
   const setClientStatus = useCallback((clientId: string, status: ClientStatus) => {
-    setData(d => ({
-      ...d,
-      clients: status === 'removed' ? d.clients.filter(c => c.id !== clientId) : d.clients.map(c => c.id !== clientId ? c : { ...c, status }),
-    }))
+    setData(d => ({ ...d, clients: d.clients.map(c => c.id !== clientId ? c : { ...c, status }) }))
   }, [])
   const resetCoach = useCallback(() => setData(coachSeed()), [])
 

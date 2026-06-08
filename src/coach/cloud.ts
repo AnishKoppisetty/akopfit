@@ -65,8 +65,8 @@ export async function fetchCoachData(coachName: string): Promise<CoachData> {
     foodBy.set(f.user_id, cur)
   })
 
-  // Hide removed clients from the dashboard.
-  const profileRows = ((profiles.data as ProfileRow[] | null) ?? []).filter(p => p.status !== 'removed')
+  // Fetch all clients (incl. removed) — the UI separates active / pending / removed.
+  const profileRows = (profiles.data as ProfileRow[] | null) ?? []
 
   const clients: CoachClient[] = await Promise.all(profileRows.map(async (p): Promise<CoachClient> => {
     const plan = planBy.get(p.id)

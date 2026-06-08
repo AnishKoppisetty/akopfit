@@ -6,6 +6,7 @@ import Roster from './pages/Roster'
 import CheckInInbox from './pages/CheckInInbox'
 import ClientDetail from './pages/ClientDetail'
 import ProgramEditor from './pages/ProgramEditor'
+import RemovedClients from './pages/RemovedClients'
 import { useAuth } from '../auth/AuthProvider'
 import { Button } from '../components/ui'
 
@@ -36,6 +37,7 @@ function CoachRoutes() {
         <Route path="/checkins" element={<CheckInInbox />} />
         <Route path="/client/:id" element={<ClientDetail />} />
         <Route path="/client/:id/program" element={<ProgramEditor />} />
+        <Route path="/removed" element={<RemovedClients />} />
         <Route path="*" element={<Roster />} />
       </Routes>
     </CoachLayout>

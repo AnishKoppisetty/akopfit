@@ -53,6 +53,13 @@ export default function ClientDetail() {
         </Card>
       )}
 
+      {c.status === 'removed' && (
+        <Card className="mb-4 border-ink-500">
+          <p className="text-sm text-muted mb-3">This client is removed — they have no access. Their data is kept.</p>
+          <Button className="w-full" onClick={() => setClientStatus(c.id, 'active')}>Restore client</Button>
+        </Card>
+      )}
+
       <div className="grid grid-cols-3 gap-3 mb-4">
         <MiniStat value={`${s.currentWeight}`} unit={c.unit} label="Current" />
         <MiniStat value={`${s.weeklyChange > 0 ? '+' : ''}${s.weeklyChange}`} unit="/wk" label="This week" color={changeColor(c.goal, s.weeklyChange)} />
