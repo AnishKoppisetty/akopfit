@@ -2,7 +2,9 @@ import { useState } from 'react'
 import { useStore } from '../store'
 import { Card, PageHeader, Chip, Button, Input } from '../components/ui'
 import { CheckIcon, DumbbellIcon, ChevronRight } from '../components/icons'
-import { todayISO, todaySplitIndex } from '../utils'
+import { todaySplitIndex } from '../utils'
+import { useSelectedDate } from '../components/SelectedDate'
+import { DateNav } from '../components/DateNav'
 import { Exercise, SetEntry } from '../types'
 
 function presc(ex: Exercise): string {
@@ -10,26 +12,26 @@ function presc(ex: Exercise): string {
 }
 
 export default function Training() {
-  const { data } = useStore()
+  const { data, getDailyLog, upsertDailyLog } = useStore()
   const { split } = data
-  const todayIdx = todaySplitIndex(split.length)
-  const [sel, setSel] = useState(todayIdx)
+  const { date } = useSelectedDate()
+  const suggestedIdx = todaySplitIndex(split.length)
+  const [sel, setSel] = useState(suggestedIdx)
   const day = split[sel]
-  const isToday = sel === todayIdx
+  const isSuggested = sel === suggestedIdx
 
-  const { getDailyLog, upsertDailyLog } = useStore()
-  const today = todayISO()
-  const log = getDailyLog(today)
-  const done = isToday && !!log.workoutDone
+  const log = getDailyLog(date)
+  const done = !!log.workoutDone && log.trainingDayId === day.id
 
   return (
     <div>
       <PageHeader subtitle="Your split" title="Training" />
+      <DateNav />
 
       <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-1 px-1 pb-1">
         {split.map((d, i) => (
           <Chip key={d.id} active={i === sel} onClick={() => setSel(i)}>
-            {i === todayIdx ? '● ' : ''}{d.label}
+            {i === suggestedIdx ? '● ' : ''}{d.label}
           </Chip>
         ))}
       </div>
@@ -41,7 +43,7 @@ export default function Training() {
           </div>
           <div>
             <div className="text-xl font-bold">{day.rest ? 'Rest Day' : day.focus}</div>
-            <div className="text-xs text-muted">{day.label}{isToday ? ' · Today' : ''}</div>
+            <div className="text-xs text-muted">{day.label}{isSuggested ? ' · Suggested' : ''}</div>
           </div>
         </div>
       </Card>
@@ -54,20 +56,17 @@ export default function Training() {
         <>
           <div className="mt-4 space-y-2">
             {day.exercises.map((ex, i) => (
-              <ExerciseRow key={ex.name} index={i} exercise={ex} loggable={isToday} date={today} />
+              <ExerciseRow key={ex.name} index={i} exercise={ex} loggable={!day.rest} date={date} />
             ))}
           </div>
 
-          {isToday && (
-            <Button
-              className="w-full mt-4"
-              variant={done ? 'ghost' : 'primary'}
-              onClick={() => upsertDailyLog(today, { workoutDone: !done, trainingDayId: day.id })}
-            >
-              {done ? <><CheckIcon width={18} height={18} /> Workout completed</> : 'Mark workout complete'}
-            </Button>
-          )}
-          {!isToday && <p className="text-center text-xs text-muted mt-4">Switch to today’s day to log your sets.</p>}
+          <Button
+            className="w-full mt-4"
+            variant={done ? 'ghost' : 'primary'}
+            onClick={() => upsertDailyLog(date, { workoutDone: !done, trainingDayId: day.id })}
+          >
+            {done ? <><CheckIcon width={18} height={18} /> Workout completed</> : 'Mark workout complete'}
+          </Button>
         </>
       )}
     </div>

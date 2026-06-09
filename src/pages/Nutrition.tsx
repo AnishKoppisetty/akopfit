@@ -2,7 +2,9 @@ import { useState } from 'react'
 import { useStore } from '../store'
 import { Card, Ring, ProgressBar, PageHeader, SectionTitle, Button, Field, Input, Chip } from '../components/ui'
 import { PlusIcon } from '../components/icons'
-import { todayISO, dayMacros } from '../utils'
+import { dayMacros } from '../utils'
+import { useSelectedDate } from '../components/SelectedDate'
+import { DateNav } from '../components/DateNav'
 import { Meal, SavedFood } from '../types'
 
 const MEALS: Meal[] = ['Breakfast', 'Lunch', 'Dinner', 'Snacks']
@@ -10,8 +12,8 @@ const MEALS: Meal[] = ['Breakfast', 'Lunch', 'Dinner', 'Snacks']
 export default function Nutrition() {
   const { data, getDailyLog, addFood, removeFood, saveToLibrary } = useStore()
   const { targets, foodLibrary } = data
-  const today = todayISO()
-  const log = getDailyLog(today)
+  const { date } = useSelectedDate()
+  const log = getDailyLog(date)
   const foods = log.foods ?? []
 
   const [adding, setAdding] = useState<Meal | null>(null)
@@ -34,7 +36,8 @@ export default function Nutrition() {
 
   return (
     <div>
-      <PageHeader subtitle="Today" title="Nutrition" />
+      <PageHeader subtitle="Food diary" title="Nutrition" />
+      <DateNav />
 
       <Card className="flex flex-col items-center py-6">
         <Ring value={totals.calories} max={targets.calories} size={170} stroke={15}>
@@ -73,7 +76,7 @@ export default function Nutrition() {
                       <div className="text-sm truncate">{f.name}</div>
                       <div className="text-[11px] text-muted">{f.calories} cal · {f.protein}p {f.carbs}c {f.fat}f</div>
                     </div>
-                    <button onClick={() => removeFood(today, f.id)} className="text-muted hover:text-rose-400 text-lg px-2 shrink-0">×</button>
+                    <button onClick={() => removeFood(date, f.id)} className="text-muted hover:text-rose-400 text-lg px-2 shrink-0">×</button>
                   </div>
                 ))}
               </div>
@@ -108,7 +111,7 @@ export default function Nutrition() {
           library={foodLibrary}
           onClose={() => setAdding(null)}
           onAdd={(food, alsoSave) => {
-            addFood(today, { ...food, meal: adding })
+            addFood(date, { ...food, meal: adding })
             if (alsoSave) saveToLibrary(food)
           }}
         />

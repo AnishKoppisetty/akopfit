@@ -11,6 +11,7 @@ import { useAuth } from './auth/AuthProvider'
 import Login from './auth/Login'
 import Onboarding from './auth/Onboarding'
 import { AwaitingApproval, Removed } from './auth/StatusScreens'
+import { SelectedDateProvider } from './components/SelectedDate'
 import { DumbbellIcon } from './components/icons'
 
 export default function App() {
@@ -43,17 +44,19 @@ function ClientApp() {
     }
   }
   return (
-    <Layout>
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/nutrition" element={<Nutrition />} />
-        <Route path="/training" element={<Training />} />
-        <Route path="/progress" element={<Progress />} />
-        <Route path="/checkin" element={<CheckIn />} />
-        <Route path="/settings" element={<Settings />} />
-        <Route path="*" element={<Home />} />
-      </Routes>
-    </Layout>
+    <SelectedDateProvider>
+      <Layout>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/nutrition" element={<Nutrition />} />
+          <Route path="/training" element={<Training />} />
+          <Route path="/progress" element={<Progress />} />
+          <Route path="/checkin" element={<CheckIn />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="*" element={<Home />} />
+        </Routes>
+      </Layout>
+    </SelectedDateProvider>
   )
 }
 

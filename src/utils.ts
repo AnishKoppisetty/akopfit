@@ -15,6 +15,12 @@ export function daysAgoISO(n: number): string {
   return toISO(d)
 }
 
+export function addDaysISO(iso: string, n: number): string {
+  const d = new Date(iso + 'T00:00:00')
+  d.setDate(d.getDate() + n)
+  return toISO(d)
+}
+
 export function prettyDate(iso: string): string {
   const d = new Date(iso + 'T00:00:00')
   return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })

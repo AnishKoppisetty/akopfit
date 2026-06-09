@@ -3,13 +3,15 @@ import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, ReferenceL
 import { useStore } from '../store'
 import { Card, PageHeader, SectionTitle, Button, Field, Input, ProgressBar } from '../components/ui'
 import { FootprintsIcon, HeartIcon } from '../components/icons'
-import { todayISO, shortDate, prettyDate } from '../utils'
+import { shortDate, prettyDate } from '../utils'
+import { useSelectedDate } from '../components/SelectedDate'
+import { DateNav } from '../components/DateNav'
 
 export default function Progress() {
   const { data, addWeight, getDailyLog, upsertDailyLog } = useStore()
   const { weightLogs, profile, targets } = data
-  const today = todayISO()
-  const log = getDailyLog(today)
+  const { date } = useSelectedDate()
+  const log = getDailyLog(date)
 
   const [w, setW] = useState('')
   const [steps, setSteps] = useState('')
@@ -25,7 +27,7 @@ export default function Progress() {
   function saveWeight() {
     const n = parseFloat(w)
     if (isNaN(n)) return
-    addWeight({ date: today, weight: n })
+    addWeight({ date, weight: n })
     setW('')
   }
 
@@ -34,7 +36,7 @@ export default function Progress() {
     if (steps) patch.steps = parseInt(steps, 10)
     if (cardio) patch.cardioMinutes = parseInt(cardio, 10)
     if (cardioType) patch.cardioType = cardioType
-    upsertDailyLog(today, patch)
+    upsertDailyLog(date, patch)
     setSteps(''); setCardio(''); setCardioType('')
   }
 
@@ -76,9 +78,10 @@ export default function Progress() {
         </div>
       </Card>
 
-      <SectionTitle>Log weight</SectionTitle>
+      <SectionTitle>Log for a day</SectionTitle>
+      <DateNav />
       <Card className="flex gap-3 items-end">
-        <Field label={`Today's weight (${profile.unit})`}>
+        <Field label={`Weight (${profile.unit})`}>
           <Input inputMode="decimal" value={w} onChange={e => setW(e.target.value)} placeholder={`${current}`} />
         </Field>
         <Button onClick={saveWeight} disabled={!w}>Save</Button>
@@ -108,7 +111,7 @@ export default function Progress() {
         <Field label="Cardio type">
           <Input value={cardioType} onChange={e => setCardioType(e.target.value)} placeholder="Incline walk, StairMaster…" />
         </Field>
-        <Button className="w-full" onClick={saveActivity} disabled={!steps && !cardio && !cardioType}>Save today’s activity</Button>
+        <Button className="w-full" onClick={saveActivity} disabled={!steps && !cardio && !cardioType}>Save activity</Button>
       </Card>
 
       <SectionTitle>Weight history</SectionTitle>
