@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useStore } from '../store'
 import { useAuth } from '../auth/AuthProvider'
 import { Card, PageHeader, SectionTitle, Button, Field, Input } from '../components/ui'
+import { NotificationsCard } from '../components/NotificationsCard'
 import { Goal } from '../types'
 
 const GOALS: { key: Goal; label: string }[] = [
@@ -106,6 +107,7 @@ export default function Settings() {
             </div>
             <Button variant="outline" onClick={() => signOut()}>Sign out</Button>
           </Card>
+          <NotificationsCard />
           <ChangePassword />
         </>
       ) : (

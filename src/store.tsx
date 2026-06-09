@@ -5,6 +5,7 @@ import { todayISO, uid } from './utils'
 import { useAuth } from './auth/AuthProvider'
 import { isSupabaseConfigured } from './lib/supabase'
 import { subscribeToTables, debounce } from './lib/realtime'
+import { sendPush } from './lib/push'
 import {
   fetchClientData, cloudUpsertDaily, cloudAddWeight, cloudAddFood, cloudRemoveFood,
   cloudSetExerciseSets, cloudAddCheckIn, cloudUpdateProfile,
@@ -157,7 +158,8 @@ function CloudStoreProvider({ userId, children }: { userId: string; children: Re
   const addCheckIn = useCallback((c: Omit<CheckIn, 'id'>) => {
     setData(d => ({ ...d, checkIns: [{ ...c, id: 'tmp-' + uid() }, ...d.checkIns] }))
     cloudAddCheckIn(userId, c).then(reload).catch(e => console.warn('[store] check-in failed', e))
-  }, [userId, reload])
+    sendPush({ target: 'coach', title: 'New check-in', body: `${data.profile.name} submitted a weekly check-in.`, url: '/coach' })
+  }, [userId, reload, data.profile.name])
 
   const saveToLibrary = useCallback((food: Omit<SavedFood, 'id'>) => {
     setData(d => ({ ...d, foodLibrary: [{ ...food, id: uid() }, ...d.foodLibrary] }))

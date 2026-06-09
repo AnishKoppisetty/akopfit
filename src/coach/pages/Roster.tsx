@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useCoach } from '../coachStore'
 import { Card, Button } from '../../components/ui'
+import { NotificationsCard } from '../../components/NotificationsCard'
 import { ChevronRight } from '../../components/icons'
 import { clientStatus, initials, goalLabel } from '../derive'
 import { CheckInState, CoachClient } from '../types'
@@ -91,6 +92,8 @@ export default function Roster() {
           Removed clients ({removedCount}) →
         </Link>
       )}
+
+      <NotificationsCard />
     </div>
   )
 }

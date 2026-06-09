@@ -11,3 +11,7 @@ npm-debug.log*
 
 # build info
 *.tsbuildinfo
+
+# VAPID private key
+supabase/.vapid-private.txt
+supabase/.vapid-public.txt

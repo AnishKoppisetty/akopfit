@@ -5,6 +5,7 @@ import { coachSeed } from './seed'
 import { useAuth } from '../auth/AuthProvider'
 import { isSupabaseConfigured } from '../lib/supabase'
 import { subscribeToTables, debounce } from '../lib/realtime'
+import { sendPush } from '../lib/push'
 import { fetchCoachData, cloudUpdatePlan, cloudReplyToCheckIn, cloudUpdateProgram, cloudSetClientStatus } from './cloud'
 
 type ClientStatus = 'pending' | 'active' | 'removed'
@@ -73,11 +74,13 @@ function CloudCoachProvider({ coachName, children }: { coachName: string; childr
   const updateClientTargets = useCallback((clientId: string, targets: Partial<Targets>) => {
     setData(d => ({ ...d, clients: d.clients.map(c => c.id !== clientId ? c : { ...c, targets: { ...c.targets, ...targets } }) }))
     cloudUpdatePlan(clientId, targets).catch(e => console.warn('[coach] plan update failed', e))
+    sendPush({ target: 'client', clientId, title: 'Plan updated', body: 'Your coach updated your nutrition targets.', url: '/nutrition' })
   }, [])
 
   const updateClient = useCallback((clientId: string, patch: Partial<Pick<CoachClient, 'goal' | 'goalWeight' | 'splitName'>>) => {
     setData(d => ({ ...d, clients: d.clients.map(c => c.id !== clientId ? c : { ...c, ...patch }) }))
     cloudUpdatePlan(clientId, patch).catch(e => console.warn('[coach] plan update failed', e))
+    sendPush({ target: 'client', clientId, title: 'Plan updated', body: 'Your coach updated your plan.', url: '/' })
   }, [])
 
   const replyToCheckIn = useCallback((clientId: string, checkInId: string, reply: string) => {
@@ -88,16 +91,19 @@ function CloudCoachProvider({ coachName, children }: { coachName: string; childr
       }),
     }))
     cloudReplyToCheckIn(checkInId, reply).catch(e => console.warn('[coach] reply failed', e))
+    sendPush({ target: 'client', clientId, title: 'New message 💬', body: 'Your coach replied to your check-in.', url: '/checkin' })
   }, [])
 
   const updateProgram = useCallback((clientId: string, days: TrainingDay[]) => {
     setData(d => ({ ...d, clients: d.clients.map(c => c.id !== clientId ? c : { ...c, program: days }) }))
     cloudUpdateProgram(clientId, days).catch(e => console.warn('[coach] program update failed', e))
+    sendPush({ target: 'client', clientId, title: 'Program updated', body: 'Your coach updated your training program.', url: '/training' })
   }, [])
 
   const setClientStatus = useCallback((clientId: string, status: ClientStatus) => {
     setData(d => ({ ...d, clients: d.clients.map(c => c.id !== clientId ? c : { ...c, status }) }))
     cloudSetClientStatus(clientId, status).catch(e => console.warn('[coach] status update failed', e))
+    if (status === 'active') sendPush({ target: 'client', clientId, title: 'You’re approved 🎉', body: 'Your coach approved your account — you’re in!', url: '/' })
   }, [])
 
   const value: CoachStore = {
