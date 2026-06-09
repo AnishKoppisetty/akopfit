@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useStore } from '../store'
 import { Card, PageHeader, SectionTitle, Button, Field, Input, Textarea } from '../components/ui'
 import { CameraIcon, PlusIcon } from '../components/icons'
@@ -11,9 +11,12 @@ const RATINGS = [
 ] as const
 
 export default function CheckIn() {
-  const { data, addCheckIn } = useStore()
+  const { data, addCheckIn, markRepliesSeen } = useStore()
   const { checkIns, profile } = data
   const fileRef = useRef<HTMLInputElement>(null)
+
+  // Viewing the check-in page clears the unread-reply badge.
+  useEffect(() => { markRepliesSeen() }, [markRepliesSeen])
 
   const [photos, setPhotos] = useState<string[]>([])
   const [message, setMessage] = useState('')

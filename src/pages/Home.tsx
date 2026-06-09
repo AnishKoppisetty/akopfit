@@ -1,11 +1,11 @@
 import { useStore } from '../store'
 import { Link } from 'react-router-dom'
 import { Card, Ring, ProgressBar, PageHeader, SectionTitle } from '../components/ui'
-import { FootprintsIcon, HeartIcon, DumbbellIcon, ChevronRight, SettingsIcon, BoltIcon } from '../components/icons'
+import { FootprintsIcon, HeartIcon, DumbbellIcon, ChevronRight, SettingsIcon, BoltIcon, BellIcon } from '../components/icons'
 import { todayISO, todaySplitIndex, prettyDate, dayMacros } from '../utils'
 
 export default function Home() {
-  const { data, getDailyLog, setWater } = useStore()
+  const { data, getDailyLog, setWater, unreadReplies } = useStore()
   const { profile, targets, split, checkIns } = data
   const today = todayISO()
   const log = getDailyLog(today)
@@ -30,9 +30,15 @@ export default function Home() {
         subtitle={greeting() + ','}
         title={profile.name}
         right={
-          <Link to="/settings" className="p-2 rounded-full bg-ink-700 text-muted">
-            <SettingsIcon width={20} height={20} />
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link to="/checkin" className="relative p-2 rounded-full bg-ink-700 text-muted">
+              <BellIcon width={20} height={20} />
+              {unreadReplies > 0 && <span className="absolute top-1 right-1 h-2.5 w-2.5 rounded-full bg-rose-500 ring-2 ring-ink-700" />}
+            </Link>
+            <Link to="/settings" className="p-2 rounded-full bg-ink-700 text-muted">
+              <SettingsIcon width={20} height={20} />
+            </Link>
+          </div>
         }
       />
 

@@ -3,6 +3,8 @@ import { CoachData, CoachClient } from './types'
 import { Targets, TrainingDay } from '../types'
 import { coachSeed } from './seed'
 import { useAuth } from '../auth/AuthProvider'
+import { isSupabaseConfigured } from '../lib/supabase'
+import { subscribeToTables, debounce } from '../lib/realtime'
 import { fetchCoachData, cloudUpdatePlan, cloudReplyToCheckIn, cloudUpdateProgram, cloudSetClientStatus } from './cloud'
 
 type ClientStatus = 'pending' | 'active' | 'removed'
@@ -54,6 +56,17 @@ function CloudCoachProvider({ coachName, children }: { coachName: string; childr
   }, [coachName])
 
   useEffect(() => { refresh() }, [refresh])
+
+  // Live dashboard: refetch when any client logs data, checks in, or signs up.
+  useEffect(() => {
+    if (!isSupabaseConfigured) return
+    const onChange = debounce(refresh, 400)
+    return subscribeToTables('coach', [
+      { table: 'profiles' }, { table: 'check_ins' }, { table: 'weight_logs' },
+      { table: 'daily_logs' }, { table: 'food_entries' }, { table: 'workout_sets' },
+      { table: 'plans' }, { table: 'programs' },
+    ], onChange)
+  }, [refresh])
 
   const getClient = useCallback((id: string) => data.clients.find(c => c.id === id), [data.clients])
 

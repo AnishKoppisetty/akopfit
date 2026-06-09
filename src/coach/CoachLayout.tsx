@@ -2,6 +2,7 @@ import { ReactNode } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useCoach } from './coachStore'
 import { useAuth } from '../auth/AuthProvider'
+import { clientStatus } from './derive'
 
 export function CoachLayout({ children }: { children: ReactNode }) {
   const { data, logout, loading } = useCoach()
@@ -9,6 +10,7 @@ export function CoachLayout({ children }: { children: ReactNode }) {
   const navigate = useNavigate()
 
   const coachName = configured ? (profile?.name || data.coachName) : data.coachName
+  const needsReply = data.clients.some(c => c.status === 'active' && clientStatus(c).checkInState === 'needs-reply')
 
   async function handleLogout() {
     if (configured) await signOut()
@@ -32,7 +34,7 @@ export function CoachLayout({ children }: { children: ReactNode }) {
         </div>
         <div className="px-5 flex gap-1 border-b border-ink-600/60">
           <CoachTab to="/coach" end>Roster</CoachTab>
-          <CoachTab to="/coach/checkins">Check-ins</CoachTab>
+          <CoachTab to="/coach/checkins" dot={needsReply}>Check-ins</CoachTab>
         </div>
       </header>
 
@@ -48,12 +50,13 @@ export function CoachLayout({ children }: { children: ReactNode }) {
   )
 }
 
-function CoachTab({ to, end, children }: { to: string; end?: boolean; children: ReactNode }) {
+function CoachTab({ to, end, dot, children }: { to: string; end?: boolean; dot?: boolean; children: ReactNode }) {
   return (
     <NavLink to={to} end={end} className="relative px-3 py-2.5 text-sm font-semibold">
       {({ isActive }) => (
         <>
           <span className={isActive ? 'text-white' : 'text-muted'}>{children}</span>
+          {dot && <span className="absolute top-1.5 -right-0 h-2 w-2 rounded-full bg-rose-500" />}
           {isActive && <span className="absolute left-3 right-3 -bottom-px h-0.5 bg-accent rounded-full" />}
         </>
       )}

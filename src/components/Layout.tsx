@@ -13,7 +13,7 @@ const tabs = [
 
 export function Layout({ children }: { children: ReactNode }) {
   const { pathname } = useLocation()
-  const { loading } = useStore()
+  const { loading, unreadReplies } = useStore()
   return (
     <div className="min-h-full flex flex-col max-w-md mx-auto relative">
       <main className="flex-1 px-5 pt-safe pb-28">
@@ -29,13 +29,17 @@ export function Layout({ children }: { children: ReactNode }) {
         <div className="max-w-md mx-auto grid grid-cols-5">
           {tabs.map(({ to, label, Icon }) => {
             const active = to === '/' ? pathname === '/' : pathname.startsWith(to)
+            const showDot = to === '/checkin' && unreadReplies > 0
             return (
               <NavLink
                 key={to}
                 to={to}
                 className="flex flex-col items-center gap-1 py-3 text-[10px] font-medium"
               >
-                <Icon className={active ? 'text-accent' : 'text-muted'} width={22} height={22} />
+                <span className="relative">
+                  <Icon className={active ? 'text-accent' : 'text-muted'} width={22} height={22} />
+                  {showDot && <span className="absolute -top-0.5 -right-1 h-2.5 w-2.5 rounded-full bg-rose-500 ring-2 ring-ink-800" />}
+                </span>
                 <span className={active ? 'text-accent' : 'text-muted'}>{label}</span>
               </NavLink>
             )

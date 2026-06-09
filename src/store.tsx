@@ -1,8 +1,10 @@
-import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react'
+import { createContext, useContext, useEffect, useState, ReactNode, useCallback, useMemo } from 'react'
 import { AppData, DailyLog, CheckIn, WeightLog, Targets, Profile, TrainingDay, FoodEntry, SavedFood, SetEntry } from './types'
 import { seedData } from './seed'
 import { todayISO, uid } from './utils'
 import { useAuth } from './auth/AuthProvider'
+import { isSupabaseConfigured } from './lib/supabase'
+import { subscribeToTables, debounce } from './lib/realtime'
 import {
   fetchClientData, cloudUpsertDaily, cloudAddWeight, cloudAddFood, cloudRemoveFood,
   cloudSetExerciseSets, cloudAddCheckIn, cloudUpdateProfile,
@@ -13,6 +15,8 @@ const STORAGE_KEY = 'akopfit:data:v2'
 interface StoreContext {
   data: AppData
   loading: boolean
+  unreadReplies: number
+  markRepliesSeen: () => void
   upsertDailyLog: (date: string, patch: Partial<DailyLog>) => void
   getDailyLog: (date: string) => DailyLog
   addFood: (date: string, food: Omit<FoodEntry, 'id'>) => void
@@ -77,6 +81,23 @@ function CloudStoreProvider({ userId, children }: { userId: string; children: Re
   }, [userId])
 
   useEffect(() => { reload() }, [reload])
+
+  // Live sync: refetch when the coach edits the plan/program/replies, or this
+  // user's data changes on another device.
+  useEffect(() => {
+    if (!isSupabaseConfigured) return
+    const f = `user_id=eq.${userId}`
+    const onChange = debounce(reload, 400)
+    return subscribeToTables(`client:${userId}`, [
+      { table: 'plans', filter: f },
+      { table: 'programs', filter: f },
+      { table: 'check_ins', filter: f },
+      { table: 'daily_logs', filter: f },
+      { table: 'food_entries', filter: f },
+      { table: 'workout_sets', filter: f },
+      { table: 'weight_logs', filter: f },
+    ], onChange)
+  }, [userId, reload])
 
   const getDailyLog = useCallback((date: string): DailyLog => data.dailyLogs[date] ?? { date }, [data.dailyLogs])
 
@@ -158,8 +179,25 @@ function CloudStoreProvider({ userId, children }: { userId: string; children: Re
 
   const setSplit = useCallback((s: TrainingDay[]) => setData(d => ({ ...d, split: s })), [])
 
+  // Unread coach replies (badge). "Seen" reply ids persist per user in localStorage.
+  const seenKey = `akopfit:seenReplies:${userId}`
+  const [seenBump, setSeenBump] = useState(0)
+  const seen = useMemo(() => {
+    try { return new Set<string>(JSON.parse(localStorage.getItem(seenKey) ?? '[]')) } catch { return new Set<string>() }
+  }, [seenKey, seenBump])
+  const unreadReplies = useMemo(
+    () => data.checkIns.filter(ci => ci.coachReply && !seen.has(ci.id)).length,
+    [data.checkIns, seen],
+  )
+  const markRepliesSeen = useCallback(() => {
+    const ids = data.checkIns.filter(ci => ci.coachReply).map(ci => ci.id)
+    try { localStorage.setItem(seenKey, JSON.stringify(ids)) } catch (e) { console.warn(e) }
+    setSeenBump(b => b + 1)
+  }, [data.checkIns, seenKey])
+
   const value: StoreContext = {
-    data, loading, upsertDailyLog, getDailyLog, addFood, removeFood, saveToLibrary,
+    data, loading, unreadReplies, markRepliesSeen,
+    upsertDailyLog, getDailyLog, addFood, removeFood, saveToLibrary,
     setWater, setExerciseSets, lastSetsFor, addWeight, addCheckIn, updateTargets,
     updateProfile, setSplit, resetAll: reload,
   }
@@ -229,7 +267,8 @@ function LocalStoreProvider({ children }: { children: ReactNode }) {
   const resetAll = useCallback(() => setData(seedData()), [])
 
   const value: StoreContext = {
-    data, loading: false, upsertDailyLog, getDailyLog, addFood, removeFood, saveToLibrary,
+    data, loading: false, unreadReplies: 0, markRepliesSeen: () => {},
+    upsertDailyLog, getDailyLog, addFood, removeFood, saveToLibrary,
     setWater, setExerciseSets, lastSetsFor, addWeight, addCheckIn, updateTargets,
     updateProfile, setSplit, resetAll,
   }

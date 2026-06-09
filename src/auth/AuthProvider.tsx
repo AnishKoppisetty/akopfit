@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
+import { subscribeToTables, debounce } from '../lib/realtime'
 
 export interface CloudProfile {
   id: string
@@ -57,18 +58,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return
     }
     supabase.auth.getSession().then(async ({ data }) => {
+      supabase.realtime.setAuth(data.session?.access_token ?? '')
       setSession(data.session)
       if (data.session?.user) await loadProfile(data.session.user.id)
       setLoading(false)
     })
 
     const { data: sub } = supabase.auth.onAuthStateChange(async (_event, sess) => {
+      supabase.realtime.setAuth(sess?.access_token ?? '')
       setSession(sess)
       if (sess?.user) await loadProfile(sess.user.id)
       else setProfile(null)
     })
     return () => sub.subscription.unsubscribe()
   }, [loadProfile])
+
+  // Live profile updates (approval status, coach stat edits) for the signed-in user.
+  useEffect(() => {
+    const uid = session?.user?.id
+    if (!isSupabaseConfigured || !uid) return
+    const reload = debounce(() => { loadProfile(uid) }, 300)
+    return subscribeToTables(`profile:${uid}`, [{ table: 'profiles', filter: `id=eq.${uid}` }], reload)
+  }, [session?.user?.id, loadProfile])
 
   const signInWithEmail = useCallback(async (email: string) => {
     const { error } = await supabase.auth.signInWithOtp({
