@@ -22,7 +22,14 @@ export default function Progress() {
   const current = weightLogs[weightLogs.length - 1]?.weight ?? profile.startWeight
   const start = profile.startWeight
   const changed = +(current - start).toFixed(1)
-  const toGoal = +(current - profile.goalWeight).toFixed(1)
+  // Distance to goal, accounting for whether the goal is to gain or lose.
+  const remaining = +Math.abs(profile.goalWeight - current).toFixed(1)
+  const goalDir = profile.goalWeight - start // > 0 gaining, < 0 losing
+  const reachedGoal = goalDir > 0
+    ? current >= profile.goalWeight
+    : goalDir < 0
+      ? current <= profile.goalWeight
+      : remaining < 0.5
 
   function saveWeight() {
     const n = parseFloat(w)
@@ -51,7 +58,7 @@ export default function Progress() {
             <div className="text-xs text-muted">current weight</div>
           </div>
           <div className="text-right">
-            <div className={`text-lg font-semibold tabular-nums ${changed <= 0 ? 'text-accent' : 'text-rose-400'}`}>
+            <div className={`text-lg font-semibold tabular-nums ${(goalDir >= 0 ? changed >= 0 : changed <= 0) ? 'text-accent' : 'text-rose-400'}`}>
               {changed > 0 ? '+' : ''}{changed} {profile.unit}
             </div>
             <div className="text-xs text-muted">since start</div>
@@ -74,7 +81,7 @@ export default function Progress() {
         </div>
         <div className="flex justify-between text-xs text-muted mt-1">
           <span>Goal: {profile.goalWeight} {profile.unit}</span>
-          <span>{Math.abs(toGoal)} {profile.unit} {toGoal > 0 ? 'to go' : 'past goal 🎉'}</span>
+          <span>{reachedGoal ? 'goal reached 🎉' : `${remaining} ${profile.unit} to go`}</span>
         </div>
       </Card>
 
