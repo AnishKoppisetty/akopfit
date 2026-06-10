@@ -110,4 +110,5 @@ export interface AppData {
   foodLibrary: SavedFood[]
   proposalPending?: boolean
   proposalDays?: TrainingDay[] | null
+  exerciseNotes?: Record<string, string> // exercise name -> personal note
 }

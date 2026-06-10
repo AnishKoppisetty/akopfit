@@ -137,11 +137,15 @@ function PreviousWorkouts() {
 }
 
 function ExerciseRow({ index, exercise, loggable, date }: { index: number; exercise: Exercise; loggable: boolean; date: string }) {
-  const { getDailyLog, setExerciseSets, lastSetsFor } = useStore()
+  const { data, getDailyLog, setExerciseSets, setExerciseNote, lastSetsFor } = useStore()
   const [open, setOpen] = useState(false)
   const log = getDailyLog(date)
   const logged = log.sets?.[exercise.name] ?? []
   const last = lastSetsFor(exercise.name, date)
+
+  const storedNote = data.exerciseNotes?.[exercise.name] ?? ''
+  const [noteVal, setNoteVal] = useState(storedNote)
+  function saveNote() { if (noteVal !== storedNote) setExerciseNote(exercise.name, noteVal) }
 
   const loggedCount = logged.filter(s => s.weight > 0 || s.reps > 0).length
 
@@ -171,6 +175,7 @@ function ExerciseRow({ index, exercise, loggable, date }: { index: number; exerc
             {loggable && loggedCount > 0 ? `${loggedCount}/${exercise.sets} sets logged` : presc(exercise)}
           </div>
           {exercise.notes && <div className="text-[11px] text-muted/80 italic truncate mt-0.5">{exercise.notes}</div>}
+          {storedNote && <div className="text-[11px] text-sky-300/80 truncate mt-0.5">📝 {storedNote}</div>}
         </div>
         {loggable
           ? <ChevronRight className={`text-muted transition shrink-0 ${open ? 'rotate-90' : ''}`} />
@@ -194,6 +199,16 @@ function ExerciseRow({ index, exercise, loggable, date }: { index: number; exerc
               Last time: {last.map(s => `${s.weight}×${s.reps}`).join(', ')}
             </p>
           )}
+          <div className="pt-2">
+            <span className="text-[11px] text-muted mb-1 block">Your notes (seat height, settings…)</span>
+            <Input
+              value={noteVal}
+              onChange={e => setNoteVal(e.target.value)}
+              onBlur={saveNote}
+              placeholder="e.g. Seat 4 · pin notch 6"
+              className="py-2 text-sm"
+            />
+          </div>
         </div>
       )}
     </Card>

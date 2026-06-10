@@ -17,7 +17,7 @@ async function signPhotos(paths: string[]): Promise<string[]> {
 }
 
 export async function fetchClientData(userId: string): Promise<AppData> {
-  const [profileRes, planRes, programRes, weightsRes, dailyRes, foodsRes, setsRes, checkInsRes] = await Promise.all([
+  const [profileRes, planRes, programRes, weightsRes, dailyRes, foodsRes, setsRes, checkInsRes, notesRes] = await Promise.all([
     supabase.from('profiles').select('id, name, email, unit, height_cm, start_weight').eq('id', userId).maybeSingle(),
     supabase.from('plans').select('*').eq('user_id', userId).maybeSingle(),
     supabase.from('programs').select('days, proposal_status, proposed_days').eq('user_id', userId).maybeSingle(),
@@ -26,6 +26,7 @@ export async function fetchClientData(userId: string): Promise<AppData> {
     supabase.from('food_entries').select('*').eq('user_id', userId),
     supabase.from('workout_sets').select('*').eq('user_id', userId),
     supabase.from('check_ins').select('*').eq('user_id', userId).order('date', { ascending: false }),
+    supabase.from('exercise_notes').select('exercise, note').eq('user_id', userId),
   ])
 
   const profile = profileRes.data as ProfileRow | null
@@ -92,6 +93,7 @@ export async function fetchClientData(userId: string): Promise<AppData> {
     foodLibrary: SEED.foodLibrary,
     proposalPending: programRow?.proposal_status === 'pending',
     proposalDays: programRow?.proposed_days ?? null,
+    exerciseNotes: Object.fromEntries(((notesRes.data as { exercise: string; note: string }[] | null) ?? []).map(n => [n.exercise, n.note])),
   }
 }
 
@@ -181,5 +183,11 @@ export async function cloudCancelProposal(userId: string) {
   const { error } = await supabase.from('programs').update({
     proposed_days: null, proposal_status: 'none', proposal_note: null,
   }).eq('user_id', userId)
+  if (error) throw error
+}
+
+export async function cloudSetExerciseNote(userId: string, exercise: string, note: string) {
+  const { error } = await supabase.from('exercise_notes')
+    .upsert({ user_id: userId, exercise, note, updated_at: new Date().toISOString() }, { onConflict: 'user_id,exercise' })
   if (error) throw error
 }

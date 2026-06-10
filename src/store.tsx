@@ -9,6 +9,7 @@ import { sendPush } from './lib/push'
 import {
   fetchClientData, cloudUpsertDaily, cloudAddWeight, cloudAddFood, cloudRemoveFood,
   cloudSetExerciseSets, cloudAddCheckIn, cloudUpdateProfile, cloudProposeProgram, cloudCancelProposal,
+  cloudSetExerciseNote,
 } from './cloudClient'
 
 const STORAGE_KEY = 'akopfit:data:v2'
@@ -25,6 +26,7 @@ interface StoreContext {
   saveToLibrary: (food: Omit<SavedFood, 'id'>) => void
   setWater: (date: string, glasses: number) => void
   setExerciseSets: (date: string, exercise: string, sets: SetEntry[]) => void
+  setExerciseNote: (exercise: string, note: string) => void
   lastSetsFor: (exercise: string, beforeDate: string) => SetEntry[] | null
   addWeight: (log: WeightLog) => void
   addCheckIn: (c: Omit<CheckIn, 'id'>) => void
@@ -99,6 +101,7 @@ function CloudStoreProvider({ userId, children }: { userId: string; children: Re
       { table: 'food_entries', filter: f },
       { table: 'workout_sets', filter: f },
       { table: 'weight_logs', filter: f },
+      { table: 'exercise_notes', filter: f },
     ], onChange)
   }, [userId, reload])
 
@@ -157,6 +160,11 @@ function CloudStoreProvider({ userId, children }: { userId: string; children: Re
 
   const lastSetsFor = useCallback((exercise: string, beforeDate: string) => lastSets(data.dailyLogs, exercise, beforeDate), [data.dailyLogs])
 
+  const setExerciseNote = useCallback((exercise: string, note: string) => {
+    setData(d => ({ ...d, exerciseNotes: { ...d.exerciseNotes, [exercise]: note } }))
+    cloudSetExerciseNote(userId, exercise, note).catch(e => console.warn('[store] exercise note failed', e))
+  }, [userId])
+
   const addCheckIn = useCallback((c: Omit<CheckIn, 'id'>) => {
     setData(d => ({ ...d, checkIns: [{ ...c, id: 'tmp-' + uid() }, ...d.checkIns] }))
     cloudAddCheckIn(userId, c).then(reload).catch(e => console.warn('[store] check-in failed', e))
@@ -213,7 +221,7 @@ function CloudStoreProvider({ userId, children }: { userId: string; children: Re
   const value: StoreContext = {
     data, loading, unreadReplies, markRepliesSeen,
     upsertDailyLog, getDailyLog, addFood, removeFood, saveToLibrary,
-    setWater, setExerciseSets, lastSetsFor, addWeight, addCheckIn, updateTargets,
+    setWater, setExerciseSets, setExerciseNote, lastSetsFor, addWeight, addCheckIn, updateTargets,
     updateProfile, setSplit, proposeProgram, cancelProposal, resetAll: reload,
   }
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
@@ -276,6 +284,7 @@ function LocalStoreProvider({ children }: { children: ReactNode }) {
     })
   }, [])
   const lastSetsFor = useCallback((exercise: string, beforeDate: string) => lastSets(data.dailyLogs, exercise, beforeDate), [data.dailyLogs])
+  const setExerciseNote = useCallback((exercise: string, note: string) => setData(d => ({ ...d, exerciseNotes: { ...d.exerciseNotes, [exercise]: note } })), [])
   const updateTargets = useCallback((t: Partial<Targets>) => setData(d => ({ ...d, targets: { ...d.targets, ...t } })), [])
   const updateProfile = useCallback((p: Partial<Profile>) => setData(d => ({ ...d, profile: { ...d.profile, ...p } })), [])
   const setSplit = useCallback((s: TrainingDay[]) => setData(d => ({ ...d, split: s })), [])
@@ -284,7 +293,7 @@ function LocalStoreProvider({ children }: { children: ReactNode }) {
   const value: StoreContext = {
     data, loading: false, unreadReplies: 0, markRepliesSeen: () => {},
     upsertDailyLog, getDailyLog, addFood, removeFood, saveToLibrary,
-    setWater, setExerciseSets, lastSetsFor, addWeight, addCheckIn, updateTargets,
+    setWater, setExerciseSets, setExerciseNote, lastSetsFor, addWeight, addCheckIn, updateTargets,
     updateProfile, setSplit, proposeProgram: () => {}, cancelProposal: () => {}, resetAll,
   }
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
