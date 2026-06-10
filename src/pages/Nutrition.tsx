@@ -5,7 +5,7 @@ import { PlusIcon } from '../components/icons'
 import { dayMacros } from '../utils'
 import { useSelectedDate } from '../components/SelectedDate'
 import { DateNav } from '../components/DateNav'
-import { searchFoods, FoodResult } from '../lib/foodSearch'
+import { searchFoods, servingOptions, macrosFor, FoodResult } from '../lib/foodSearch'
 import { Meal, SavedFood } from '../types'
 
 const MEALS: Meal[] = ['Breakfast', 'Lunch', 'Dinner', 'Snacks']
@@ -136,11 +136,14 @@ function AddFoodSheet({ meal, library, onClose, onAdd }: {
   const [f, setF] = useState('')
   const [save, setSave] = useState(false)
 
-  // Open Food Facts search
+  // Food database search (USDA via Edge Function) + serving picker
   const [sq, setSq] = useState('')
   const [results, setResults] = useState<FoodResult[]>([])
   const [searching, setSearching] = useState(false)
   const [searchErr, setSearchErr] = useState('')
+  const [selected, setSelected] = useState<FoodResult | null>(null)
+  const [qty, setQty] = useState('1')
+  const [unitIdx, setUnitIdx] = useState(0)
 
   const filtered = library.filter(l => l.name.toLowerCase().includes(q.toLowerCase()))
 
@@ -157,9 +160,19 @@ function AddFoodSheet({ meal, library, onClose, onAdd }: {
     return () => { cancelled = true; clearTimeout(t) }
   }, [sq, tab])
 
-  function pickResult(r: FoodResult) {
-    setName(r.name); setCal(String(r.calories)); setP(String(r.protein)); setC(String(r.carbs)); setF(String(r.fat))
-    setTab('custom')
+  function selectFood(r: FoodResult) {
+    setSelected(r)
+    setUnitIdx(0)
+    setQty(r.serving ? '1' : '100') // default to label serving, else 100 g
+  }
+
+  function addSelected() {
+    if (!selected) return
+    const opts = servingOptions(selected)
+    const grams = (parseFloat(qty) || 0) * (opts[unitIdx]?.grams ?? 1)
+    const m = macrosFor(selected, grams)
+    onAdd({ name: `${selected.name} (${Math.round(grams)} g)`, ...m }, false)
+    onClose()
   }
 
   function addCustom() {
@@ -186,30 +199,45 @@ function AddFoodSheet({ meal, library, onClose, onAdd }: {
         </div>
 
         {tab === 'search' ? (
-          <>
-            <Input placeholder="Search foods (e.g. greek yogurt)…" value={sq} onChange={e => setSq(e.target.value)} className="mb-3" autoFocus />
-            {searching && <p className="text-sm text-muted text-center py-3">Searching…</p>}
-            {searchErr && <p className="text-sm text-rose-400 text-center py-2">{searchErr}</p>}
-            <div className="space-y-2">
-              {results.map((r, i) => (
-                <button
-                  key={i}
-                  onClick={() => pickResult(r)}
-                  className="w-full flex items-center justify-between bg-ink-700 rounded-xl px-4 py-3 text-left active:scale-[0.98] transition"
-                >
-                  <div className="min-w-0 mr-2">
-                    <div className="text-sm truncate">{r.name}</div>
-                    <div className="text-[11px] text-muted truncate">{r.brand ? `${r.brand} · ` : ''}{r.portion} · {r.protein}p {r.carbs}c {r.fat}f</div>
-                  </div>
-                  <div className="text-sm font-semibold tabular-nums text-accent shrink-0">{r.calories}</div>
-                </button>
-              ))}
-              {!searching && sq.trim().length >= 2 && results.length === 0 && !searchErr && (
-                <p className="text-sm text-muted text-center py-4">No results. Try another term or the Custom tab.</p>
-              )}
-              {sq.trim().length < 2 && <p className="text-[11px] text-muted text-center py-2">Powered by Open Food Facts. Tap a result to adjust the portion before adding.</p>}
-            </div>
-          </>
+          selected ? (
+            <ServingPicker
+              food={selected}
+              qty={qty} setQty={setQty}
+              unitIdx={unitIdx} setUnitIdx={setUnitIdx}
+              onBack={() => setSelected(null)}
+              onAdd={addSelected}
+              meal={meal}
+            />
+          ) : (
+            <>
+              <Input placeholder="Search foods (e.g. greek yogurt)…" value={sq} onChange={e => setSq(e.target.value)} className="mb-3" autoFocus />
+              {searching && <p className="text-sm text-muted text-center py-3">Searching…</p>}
+              {searchErr && <p className="text-sm text-rose-400 text-center py-2">{searchErr}</p>}
+              <div className="space-y-2">
+                {results.map((r, i) => {
+                  const previewG = r.serving?.grams ?? 100
+                  const pm = macrosFor(r, previewG)
+                  return (
+                    <button
+                      key={i}
+                      onClick={() => selectFood(r)}
+                      className="w-full flex items-center justify-between bg-ink-700 rounded-xl px-4 py-3 text-left active:scale-[0.98] transition"
+                    >
+                      <div className="min-w-0 mr-2">
+                        <div className="text-sm truncate">{r.name}</div>
+                        <div className="text-[11px] text-muted truncate">{r.brand ? `${r.brand} · ` : ''}{r.serving ? r.serving.label : 'per 100 g'} · {pm.protein}p {pm.carbs}c {pm.fat}f</div>
+                      </div>
+                      <div className="text-sm font-semibold tabular-nums text-accent shrink-0">{pm.calories}</div>
+                    </button>
+                  )
+                })}
+                {!searching && sq.trim().length >= 2 && results.length === 0 && !searchErr && (
+                  <p className="text-sm text-muted text-center py-4">No results. Try another term or the Custom tab.</p>
+                )}
+                {sq.trim().length < 2 && <p className="text-[11px] text-muted text-center py-2">Powered by USDA FoodData Central. Tap a food to pick a serving size.</p>}
+              </div>
+            </>
+          )
         ) : tab === 'library' ? (
           <>
             <Input placeholder="Search foods…" value={q} onChange={e => setQ(e.target.value)} className="mb-3" />
@@ -260,6 +288,59 @@ function SplitLeg({ color, label, pct, grams }: { color: string; label: string; 
       </div>
       <div className="text-lg font-bold tabular-nums leading-none">{pct}%</div>
       <div className="text-[11px] text-muted">{grams}g</div>
+    </div>
+  )
+}
+
+function ServingPicker({ food, qty, setQty, unitIdx, setUnitIdx, onBack, onAdd, meal }: {
+  food: FoodResult
+  qty: string; setQty: (v: string) => void
+  unitIdx: number; setUnitIdx: (i: number) => void
+  onBack: () => void
+  onAdd: () => void
+  meal: Meal
+}) {
+  const opts = servingOptions(food)
+  const grams = (parseFloat(qty) || 0) * (opts[unitIdx]?.grams ?? 1)
+  const m = macrosFor(food, grams)
+
+  return (
+    <div className="space-y-4">
+      <button onClick={onBack} className="text-sm text-accent">‹ Back to results</button>
+      <div>
+        <div className="font-semibold leading-tight">{food.name}</div>
+        {food.brand && <div className="text-xs text-muted">{food.brand}</div>}
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Quantity"><Input inputMode="decimal" value={qty} onChange={e => setQty(e.target.value)} /></Field>
+        <Field label="Serving size">
+          <select
+            value={unitIdx}
+            onChange={e => setUnitIdx(+e.target.value)}
+            className="w-full bg-ink-700 border border-ink-600 rounded-xl px-3 py-3 text-white outline-none focus:border-accent"
+          >
+            {opts.map((o, i) => <option key={i} value={i}>{o.label}</option>)}
+          </select>
+        </Field>
+      </div>
+      <Card className="bg-ink-700">
+        <div className="grid grid-cols-4 text-center">
+          <Macro label="Calories" value={m.calories} />
+          <Macro label="Protein" value={m.protein} />
+          <Macro label="Carbs" value={m.carbs} />
+          <Macro label="Fat" value={m.fat} />
+        </div>
+      </Card>
+      <Button className="w-full" onClick={onAdd}>Add to {meal}</Button>
+    </div>
+  )
+}
+
+function Macro({ label, value }: { label: string; value: number }) {
+  return (
+    <div>
+      <div className="text-xl font-bold tabular-nums leading-none">{value}</div>
+      <div className="text-[10px] text-muted mt-1">{label}</div>
     </div>
   )
 }
