@@ -24,6 +24,9 @@ export interface CoachClient {
   splitName: string
   targets: Targets
   program: TrainingDay[]
+  proposalPending: boolean
+  proposedDays: TrainingDay[] | null
+  proposalNote: string | null
   weightLogs: WeightLog[]
   checkIns: CheckIn[]
   today: TodaySnapshot

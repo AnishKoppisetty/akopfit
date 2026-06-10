@@ -108,4 +108,6 @@ export interface AppData {
   dailyLogs: Record<string, DailyLog>
   checkIns: CheckIn[]
   foodLibrary: SavedFood[]
+  proposalPending?: boolean
+  proposalDays?: TrainingDay[] | null
 }

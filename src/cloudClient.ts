@@ -20,7 +20,7 @@ export async function fetchClientData(userId: string): Promise<AppData> {
   const [profileRes, planRes, programRes, weightsRes, dailyRes, foodsRes, setsRes, checkInsRes] = await Promise.all([
     supabase.from('profiles').select('id, name, email, unit, height_cm, start_weight').eq('id', userId).maybeSingle(),
     supabase.from('plans').select('*').eq('user_id', userId).maybeSingle(),
-    supabase.from('programs').select('days').eq('user_id', userId).maybeSingle(),
+    supabase.from('programs').select('days, proposal_status, proposed_days').eq('user_id', userId).maybeSingle(),
     supabase.from('weight_logs').select('date, weight').eq('user_id', userId).order('date'),
     supabase.from('daily_logs').select('*').eq('user_id', userId),
     supabase.from('food_entries').select('*').eq('user_id', userId),
@@ -30,7 +30,8 @@ export async function fetchClientData(userId: string): Promise<AppData> {
 
   const profile = profileRes.data as ProfileRow | null
   const plan = planRes.data as PlanRow | null
-  const programDays = (programRes.data as { days: any[] } | null)?.days
+  const programRow = programRes.data as { days: any[]; proposal_status?: string; proposed_days?: any[] } | null
+  const programDays = programRow?.days
   const split = programDays && programDays.length > 0 ? programDays : SEED.split
 
   const weightLogs = ((weightsRes.data as any[]) ?? []).map(w => ({ date: w.date, weight: Number(w.weight) }))
@@ -89,6 +90,8 @@ export async function fetchClientData(userId: string): Promise<AppData> {
     dailyLogs,
     checkIns,
     foodLibrary: SEED.foodLibrary,
+    proposalPending: programRow?.proposal_status === 'pending',
+    proposalDays: programRow?.proposed_days ?? null,
   }
 }
 
@@ -164,5 +167,19 @@ export async function cloudAddCheckIn(userId: string, checkIn: Omit<CheckIn, 'id
 
 export async function cloudUpdateProfile(userId: string, patch: { name?: string; unit?: string; start_weight?: number; height_cm?: number }) {
   const { error } = await supabase.from('profiles').update(patch).eq('id', userId)
+  if (error) throw error
+}
+
+export async function cloudProposeProgram(userId: string, days: any[], note: string) {
+  const { error } = await supabase.from('programs').update({
+    proposed_days: days, proposal_status: 'pending', proposal_note: note || null, proposed_at: new Date().toISOString(),
+  }).eq('user_id', userId)
+  if (error) throw error
+}
+
+export async function cloudCancelProposal(userId: string) {
+  const { error } = await supabase.from('programs').update({
+    proposed_days: null, proposal_status: 'none', proposal_note: null,
+  }).eq('user_id', userId)
   if (error) throw error
 }

@@ -17,6 +17,7 @@ export default function Roster() {
 
   const order: Record<CheckInState, number> = { 'needs-reply': 0, 'overdue': 1, 'reviewed': 2, 'none': 1 }
   const sorted = [...statuses].sort((a, b) => {
+    if (a.c.proposalPending !== b.c.proposalPending) return a.c.proposalPending ? -1 : 1
     const d = order[a.s.checkInState] - order[b.s.checkInState]
     return d !== 0 ? d : a.c.name.localeCompare(b.c.name)
   })
@@ -71,7 +72,9 @@ export default function Roster() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="font-semibold truncate">{c.name}</span>
-                  <StatusDot state={s.checkInState} />
+                  {c.proposalPending
+                    ? <span className="text-[10px] bg-accent/20 text-accent px-1.5 py-0.5 rounded-full whitespace-nowrap">plan req</span>
+                    : <StatusDot state={s.checkInState} />}
                 </div>
                 <div className="text-xs text-muted truncate">{goalLabel(c.goal)} · {c.splitName}</div>
               </div>

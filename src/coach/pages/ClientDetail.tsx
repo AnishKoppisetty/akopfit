@@ -14,7 +14,7 @@ import { Goal } from '../../types'
 
 export default function ClientDetail() {
   const { id } = useParams()
-  const { getClient, setClientStatus } = useCoach()
+  const { getClient, setClientStatus, approveProposal, rejectProposal } = useCoach()
   const navigate = useNavigate()
   const c = getClient(id ?? '')
   const [editing, setEditing] = useState(false)
@@ -59,6 +59,30 @@ export default function ClientDetail() {
         <Card className="mb-4 border-ink-500">
           <p className="text-sm text-muted mb-3">This client is removed — they have no access. Their data is kept.</p>
           <Button className="w-full" onClick={() => setClientStatus(c.id, 'active')}>Restore client</Button>
+        </Card>
+      )}
+
+      {c.proposalPending && c.proposedDays && (
+        <Card className="mb-4 border-accent/40 bg-accent/[0.06]">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-sm font-semibold">Plan change request</span>
+            <span className="h-2 w-2 rounded-full bg-accent" />
+          </div>
+          {c.proposalNote && <p className="text-sm text-zinc-200 mb-3 italic">“{c.proposalNote}”</p>}
+          <div className="space-y-1.5 mb-3 border-y border-ink-600/50 py-3">
+            {c.proposedDays.map(day => (
+              <div key={day.id} className="text-sm">
+                <span className="font-medium">{day.label}: {day.focus}</span>
+                {!day.rest && day.exercises.length > 0 && (
+                  <span className="text-xs text-muted"> — {day.exercises.map(e => e.name).filter(Boolean).join(', ')}</span>
+                )}
+              </div>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            <Button className="flex-1" onClick={() => approveProposal(c.id, c.proposedDays!)}>Approve</Button>
+            <Button variant="outline" onClick={() => { if (confirm('Reject these changes?')) rejectProposal(c.id) }}>Reject</Button>
+          </div>
         </Card>
       )}
 

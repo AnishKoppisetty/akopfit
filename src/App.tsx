@@ -6,6 +6,7 @@ import Training from './pages/Training'
 import Progress from './pages/Progress'
 import CheckIn from './pages/CheckIn'
 import Settings from './pages/Settings'
+import EditPlan from './pages/EditPlan'
 import CoachApp from './coach/CoachApp'
 import { useAuth } from './auth/AuthProvider'
 import Login from './auth/Login'
@@ -50,6 +51,7 @@ function ClientApp() {
           <Route path="/" element={<Home />} />
           <Route path="/nutrition" element={<Nutrition />} />
           <Route path="/training" element={<Training />} />
+          <Route path="/edit-plan" element={<EditPlan />} />
           <Route path="/progress" element={<Progress />} />
           <Route path="/checkin" element={<CheckIn />} />
           <Route path="/settings" element={<Settings />} />

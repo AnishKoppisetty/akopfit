@@ -6,7 +6,7 @@ import { useAuth } from '../auth/AuthProvider'
 import { isSupabaseConfigured } from '../lib/supabase'
 import { subscribeToTables, debounce } from '../lib/realtime'
 import { sendPush } from '../lib/push'
-import { fetchCoachData, cloudUpdatePlan, cloudReplyToCheckIn, cloudUpdateProgram, cloudSetClientStatus } from './cloud'
+import { fetchCoachData, cloudUpdatePlan, cloudReplyToCheckIn, cloudUpdateProgram, cloudSetClientStatus, cloudApproveProposal, cloudRejectProposal } from './cloud'
 
 type ClientStatus = 'pending' | 'active' | 'removed'
 
@@ -26,6 +26,8 @@ interface CoachStore {
   updateClient: (clientId: string, patch: Partial<Pick<CoachClient, 'goal' | 'goalWeight' | 'splitName'>>) => void
   updateProgram: (clientId: string, days: TrainingDay[]) => void
   setClientStatus: (clientId: string, status: ClientStatus) => void
+  approveProposal: (clientId: string, days: TrainingDay[]) => void
+  rejectProposal: (clientId: string) => void
   resetCoach: () => void
   refresh: () => void
 }
@@ -106,10 +108,23 @@ function CloudCoachProvider({ coachName, children }: { coachName: string; childr
     if (status === 'active') sendPush({ target: 'client', clientId, title: 'You’re approved 🎉', body: 'Your coach approved your account — you’re in!', url: '/' })
   }, [])
 
+  const approveProposal = useCallback((clientId: string, days: TrainingDay[]) => {
+    setData(d => ({ ...d, clients: d.clients.map(c => c.id !== clientId ? c : { ...c, program: days, proposalPending: false, proposedDays: null, proposalNote: null }) }))
+    cloudApproveProposal(clientId, days).catch(e => console.warn('[coach] approve failed', e))
+    sendPush({ target: 'client', clientId, title: 'Plan changes approved ✅', body: 'Your coach approved your program edits.', url: '/training' })
+  }, [])
+
+  const rejectProposal = useCallback((clientId: string) => {
+    setData(d => ({ ...d, clients: d.clients.map(c => c.id !== clientId ? c : { ...c, proposalPending: false, proposedDays: null, proposalNote: null }) }))
+    cloudRejectProposal(clientId).catch(e => console.warn('[coach] reject failed', e))
+    sendPush({ target: 'client', clientId, title: 'Plan request reviewed', body: 'Your coach kept your current program for now.', url: '/training' })
+  }, [])
+
   const value: CoachStore = {
     data, loading, authed: true,
     login: () => true, logout: () => {},
     getClient, replyToCheckIn, updateClientTargets, updateClient, updateProgram, setClientStatus,
+    approveProposal, rejectProposal,
     resetCoach: () => {}, refresh,
   }
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
@@ -162,7 +177,8 @@ function LocalCoachProvider({ children }: { children: ReactNode }) {
 
   const value: CoachStore = {
     data, loading: false, authed, login, logout, getClient,
-    replyToCheckIn, updateClientTargets, updateClient, updateProgram, setClientStatus, resetCoach, refresh: () => {},
+    replyToCheckIn, updateClientTargets, updateClient, updateProgram, setClientStatus,
+    approveProposal: () => {}, rejectProposal: () => {}, resetCoach, refresh: () => {},
   }
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }

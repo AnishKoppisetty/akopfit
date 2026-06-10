@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store'
 import { Card, PageHeader, Chip, Button, Input } from '../components/ui'
 import { CheckIcon, DumbbellIcon, ChevronRight } from '../components/icons'
@@ -14,6 +15,7 @@ function presc(ex: Exercise): string {
 export default function Training() {
   const { data, getDailyLog, upsertDailyLog } = useStore()
   const { split } = data
+  const navigate = useNavigate()
   const { date } = useSelectedDate()
   const suggestedIdx = todaySplitIndex(split.length)
   const [sel, setSel] = useState(suggestedIdx)
@@ -27,6 +29,18 @@ export default function Training() {
     <div>
       <PageHeader subtitle="Your split" title="Training" />
       <DateNav />
+
+      {data.proposalPending ? (
+        <Card className="mb-3 border-accent/30 bg-accent/[0.05] flex items-center justify-between">
+          <span className="text-sm">Plan changes pending coach review ⏳</span>
+          <button onClick={() => navigate('/edit-plan')} className="text-xs text-accent font-semibold shrink-0 ml-3">View</button>
+        </Card>
+      ) : (
+        <button onClick={() => navigate('/edit-plan')} className="w-full mb-3 text-left text-sm text-accent font-semibold flex items-center justify-between bg-ink-800 border border-ink-600/60 rounded-xl2 px-4 py-2.5">
+          Request plan changes
+          <ChevronRight width={16} height={16} />
+        </button>
+      )}
 
       <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-1 px-1 pb-1">
         {split.map((d, i) => (

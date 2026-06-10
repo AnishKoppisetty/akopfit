@@ -8,7 +8,7 @@ import { subscribeToTables, debounce } from './lib/realtime'
 import { sendPush } from './lib/push'
 import {
   fetchClientData, cloudUpsertDaily, cloudAddWeight, cloudAddFood, cloudRemoveFood,
-  cloudSetExerciseSets, cloudAddCheckIn, cloudUpdateProfile,
+  cloudSetExerciseSets, cloudAddCheckIn, cloudUpdateProfile, cloudProposeProgram, cloudCancelProposal,
 } from './cloudClient'
 
 const STORAGE_KEY = 'akopfit:data:v2'
@@ -31,6 +31,8 @@ interface StoreContext {
   updateTargets: (t: Partial<Targets>) => void
   updateProfile: (p: Partial<Profile>) => void
   setSplit: (s: TrainingDay[]) => void
+  proposeProgram: (days: TrainingDay[], note: string) => void
+  cancelProposal: () => void
   resetAll: () => void
 }
 
@@ -181,6 +183,17 @@ function CloudStoreProvider({ userId, children }: { userId: string; children: Re
 
   const setSplit = useCallback((s: TrainingDay[]) => setData(d => ({ ...d, split: s })), [])
 
+  const proposeProgram = useCallback((days: TrainingDay[], note: string) => {
+    setData(d => ({ ...d, proposalPending: true, proposalDays: days }))
+    cloudProposeProgram(userId, days, note).catch(e => console.warn('[store] propose failed', e))
+    sendPush({ target: 'coach', title: 'Plan change request', body: `${data.profile.name} suggested edits to their program.`, url: '/coach' })
+  }, [userId, data.profile.name])
+
+  const cancelProposal = useCallback(() => {
+    setData(d => ({ ...d, proposalPending: false, proposalDays: null }))
+    cloudCancelProposal(userId).catch(e => console.warn('[store] cancel proposal failed', e))
+  }, [userId])
+
   // Unread coach replies (badge). "Seen" reply ids persist per user in localStorage.
   const seenKey = `akopfit:seenReplies:${userId}`
   const [seenBump, setSeenBump] = useState(0)
@@ -201,7 +214,7 @@ function CloudStoreProvider({ userId, children }: { userId: string; children: Re
     data, loading, unreadReplies, markRepliesSeen,
     upsertDailyLog, getDailyLog, addFood, removeFood, saveToLibrary,
     setWater, setExerciseSets, lastSetsFor, addWeight, addCheckIn, updateTargets,
-    updateProfile, setSplit, resetAll: reload,
+    updateProfile, setSplit, proposeProgram, cancelProposal, resetAll: reload,
   }
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }
@@ -272,7 +285,7 @@ function LocalStoreProvider({ children }: { children: ReactNode }) {
     data, loading: false, unreadReplies: 0, markRepliesSeen: () => {},
     upsertDailyLog, getDailyLog, addFood, removeFood, saveToLibrary,
     setWater, setExerciseSets, lastSetsFor, addWeight, addCheckIn, updateTargets,
-    updateProfile, setSplit, resetAll,
+    updateProfile, setSplit, proposeProgram: () => {}, cancelProposal: () => {}, resetAll,
   }
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }

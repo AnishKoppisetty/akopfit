@@ -27,7 +27,7 @@ export async function fetchCoachData(coachName: string): Promise<CoachData> {
   const [profiles, plans, programs, weights, checkIns, daily, foods] = await Promise.all([
     supabase.from('profiles').select('id, name, email, unit, start_weight, created_at, status, age, sex, height_cm').eq('role', 'client'),
     supabase.from('plans').select('*'),
-    supabase.from('programs').select('user_id, days'),
+    supabase.from('programs').select('user_id, days, proposal_status, proposed_days, proposal_note'),
     supabase.from('weight_logs').select('user_id, date, weight').order('date', { ascending: true }),
     supabase.from('check_ins').select('*').order('date', { ascending: false }),
     supabase.from('daily_logs').select('user_id, date, steps, cardio_minutes, water, workout_done').eq('date', today),
@@ -38,8 +38,10 @@ export async function fetchCoachData(coachName: string): Promise<CoachData> {
   ;(plans.data as PlanRow[] | null)?.forEach(p => planBy.set(p.user_id, p))
 
   const programBy = new Map<string, TrainingDay[]>()
-  ;(programs.data as { user_id: string; days: TrainingDay[] }[] | null)?.forEach(p => {
+  const proposalBy = new Map<string, { days: TrainingDay[] | null; note: string | null; pending: boolean }>()
+  ;(programs.data as { user_id: string; days: TrainingDay[]; proposal_status?: string; proposed_days?: TrainingDay[]; proposal_note?: string }[] | null)?.forEach(p => {
     if (p.days && p.days.length > 0) programBy.set(p.user_id, p.days)
+    proposalBy.set(p.user_id, { pending: p.proposal_status === 'pending', days: p.proposed_days ?? null, note: p.proposal_note ?? null })
   })
 
   const weightsBy = new Map<string, WeightRow[]>()
@@ -106,6 +108,9 @@ export async function fetchCoachData(coachName: string): Promise<CoachData> {
       splitName: plan?.split_name ?? 'Push / Pull / Legs',
       targets,
       program: programBy.get(p.id) ?? DEFAULT_PROGRAM,
+      proposalPending: proposalBy.get(p.id)?.pending ?? false,
+      proposedDays: proposalBy.get(p.id)?.days ?? null,
+      proposalNote: proposalBy.get(p.id)?.note ?? null,
       weightLogs: wlogs,
       checkIns: cins,
       today: {
@@ -153,5 +158,19 @@ export async function cloudSetClientStatus(userId: string, status: 'pending' | '
 export async function cloudUpdateProgram(userId: string, days: TrainingDay[]) {
   const { error } = await supabase.from('programs')
     .upsert({ user_id: userId, days, updated_at: new Date().toISOString() }, { onConflict: 'user_id' })
+  if (error) throw error
+}
+
+export async function cloudApproveProposal(userId: string, days: TrainingDay[]) {
+  const { error } = await supabase.from('programs').update({
+    days, proposed_days: null, proposal_status: 'none', proposal_note: null, updated_at: new Date().toISOString(),
+  }).eq('user_id', userId)
+  if (error) throw error
+}
+
+export async function cloudRejectProposal(userId: string) {
+  const { error } = await supabase.from('programs').update({
+    proposed_days: null, proposal_status: 'none', proposal_note: null,
+  }).eq('user_id', userId)
   if (error) throw error
 }
