@@ -89,21 +89,14 @@ export default function Home() {
       <SectionTitle>Water</SectionTitle>
       <Card>
         <div className="flex items-center justify-between mb-3">
-          <span className="text-sm text-muted">{water} / {targets.water} glasses</span>
+          <span className="text-sm"><span className="font-semibold tabular-nums">{water}</span><span className="text-muted"> / {targets.water} oz</span></span>
           <div className="flex gap-2">
-            <button onClick={() => setWater(today, water - 1)} className="h-8 w-8 rounded-lg bg-ink-700 text-white text-lg active:scale-90 transition">−</button>
-            <button onClick={() => setWater(today, water + 1)} className="h-8 w-8 rounded-lg bg-accent text-ink-900 text-lg font-bold active:scale-90 transition">+</button>
+            <button onClick={() => setWater(today, Math.max(0, water - 8))} className="h-8 px-3 rounded-lg bg-ink-700 text-white text-sm font-semibold active:scale-90 transition">−8</button>
+            <button onClick={() => setWater(today, water + 8)} className="h-8 px-3 rounded-lg bg-ink-600 text-white text-sm font-semibold active:scale-90 transition">+8</button>
+            <button onClick={() => setWater(today, water + 16)} className="h-8 px-3 rounded-lg bg-accent text-ink-900 text-sm font-bold active:scale-90 transition">+16</button>
           </div>
         </div>
-        <div className="flex gap-1.5">
-          {Array.from({ length: targets.water }).map((_, i) => (
-            <button
-              key={i}
-              onClick={() => setWater(today, i + 1 === water ? i : i + 1)}
-              className={`flex-1 h-9 rounded-md transition ${i < water ? 'bg-sky-400' : 'bg-ink-600'}`}
-            />
-          ))}
-        </div>
+        <ProgressBar value={water} max={targets.water} color="bg-sky-400" />
       </Card>
 
       {/* Today's training */}

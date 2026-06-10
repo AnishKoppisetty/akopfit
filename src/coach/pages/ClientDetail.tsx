@@ -5,6 +5,7 @@ import { useCoach } from '../coachStore'
 import { Card, ProgressBar, Button, Field, Input } from '../../components/ui'
 import { Avatar, changeColor } from './Roster'
 import { CheckInCard } from '../components/CheckInCard'
+import { PhotoCompare } from '../../components/PhotoCompare'
 import { clientStatus, goalLabel } from '../derive'
 import { shortDate } from '../../utils'
 import { FootprintsIcon, HeartIcon, FlameIcon, DumbbellIcon, CheckIcon } from '../../components/icons'
@@ -17,6 +18,7 @@ export default function ClientDetail() {
   const navigate = useNavigate()
   const c = getClient(id ?? '')
   const [editing, setEditing] = useState(false)
+  const [comparing, setComparing] = useState(false)
 
   if (!c) {
     return (
@@ -137,7 +139,12 @@ export default function ClientDetail() {
       </Link>
 
       {/* Check-ins */}
-      <h2 className="text-sm font-semibold uppercase tracking-wider text-muted mb-3 mt-6">Check-in history</h2>
+      <div className="flex items-center justify-between mb-3 mt-6">
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted">Check-in history</h2>
+        {c.checkIns.filter(ci => ci.photos.length > 0).length >= 2 && (
+          <button onClick={() => setComparing(true)} className="text-xs text-accent font-semibold">Compare photos</button>
+        )}
+      </div>
       {c.checkIns.length === 0 ? (
         <Card><p className="text-sm text-muted">No check-ins submitted yet.</p></Card>
       ) : (
@@ -161,6 +168,7 @@ export default function ClientDetail() {
       )}
 
       {editing && <EditPlanSheet client={c} onClose={() => setEditing(false)} />}
+      {comparing && <PhotoCompare checkIns={c.checkIns} onClose={() => setComparing(false)} />}
     </div>
   )
 }
@@ -265,7 +273,7 @@ function EditPlanSheet({ client, onClose }: { client: CoachClient; onClose: () =
           <div className="grid grid-cols-3 gap-3">
             <Field label="Steps"><Input inputMode="numeric" value={steps} onChange={e => setSteps(e.target.value)} /></Field>
             <Field label="Cardio (min)"><Input inputMode="numeric" value={cardio} onChange={e => setCardio(e.target.value)} /></Field>
-            <Field label="Water (glasses)"><Input inputMode="numeric" value={water} onChange={e => setWater(e.target.value)} /></Field>
+            <Field label="Water (oz)"><Input inputMode="numeric" value={water} onChange={e => setWater(e.target.value)} /></Field>
           </div>
 
           <div className="flex gap-3 pt-1">

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useStore } from '../store'
 import { Card, PageHeader, Chip, Button, Input } from '../components/ui'
 import { CheckIcon, DumbbellIcon, ChevronRight } from '../components/icons'
-import { todaySplitIndex } from '../utils'
+import { todaySplitIndex, prettyDate } from '../utils'
 import { useSelectedDate } from '../components/SelectedDate'
 import { DateNav } from '../components/DateNav'
 import { Exercise, SetEntry } from '../types'
@@ -69,7 +69,56 @@ export default function Training() {
           </Button>
         </>
       )}
+
+      <PreviousWorkouts />
     </div>
+  )
+}
+
+function PreviousWorkouts() {
+  const { data } = useStore()
+  const [openDate, setOpenDate] = useState<string | null>(null)
+
+  const sessions = Object.values(data.dailyLogs)
+    .filter(l => l.workoutDone || (l.sets && Object.values(l.sets).some(s => s.length > 0)))
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .slice(0, 30)
+
+  if (sessions.length === 0) return null
+
+  const focusFor = (id?: string) => data.split.find(d => d.id === id)?.focus
+
+  return (
+    <>
+      <h2 className="text-sm font-semibold uppercase tracking-wider text-muted mb-3 mt-8">Previous workouts</h2>
+      <div className="space-y-2">
+        {sessions.map(s => {
+          const entries = Object.entries(s.sets ?? {}).filter(([, sets]) => sets.some(x => x.weight > 0 || x.reps > 0))
+          const isOpen = openDate === s.date
+          return (
+            <Card key={s.date} className="py-3">
+              <button className="w-full flex items-center justify-between" onClick={() => setOpenDate(isOpen ? null : s.date)}>
+                <div className="text-left">
+                  <div className="font-medium">{focusFor(s.trainingDayId) || 'Workout'}</div>
+                  <div className="text-xs text-muted">{prettyDate(s.date)} · {entries.length} exercise{entries.length === 1 ? '' : 's'} logged</div>
+                </div>
+                <ChevronRight className={`text-muted transition ${isOpen ? 'rotate-90' : ''}`} />
+              </button>
+              {isOpen && entries.length > 0 && (
+                <div className="mt-3 space-y-1.5 border-t border-ink-600/50 pt-3">
+                  {entries.map(([name, sets]) => (
+                    <div key={name} className="flex justify-between text-sm">
+                      <span className="text-muted truncate mr-2">{name}</span>
+                      <span className="tabular-nums shrink-0">{sets.filter(x => x.weight > 0 || x.reps > 0).map(x => `${x.weight}×${x.reps}`).join(', ')}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+          )
+        })}
+      </div>
+    </>
   )
 }
 
@@ -94,10 +143,14 @@ function ExerciseRow({ index, exercise, loggable, date }: { index: number; exerc
     setExerciseSets(date, exercise.name, rows)
   }
 
+  const filled = loggedCount > 0
+
   return (
-    <Card className="py-3">
+    <Card className={`py-3 transition ${filled ? 'border-accent/50 bg-accent/[0.04]' : ''}`}>
       <button className="w-full flex items-center gap-3" onClick={() => loggable && setOpen(o => !o)}>
-        <div className="h-8 w-8 rounded-lg bg-ink-700 flex items-center justify-center text-xs font-bold text-muted shrink-0">{index + 1}</div>
+        <div className={`h-8 w-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 ${filled ? 'bg-accent text-ink-900' : 'bg-ink-700 text-muted'}`}>
+          {filled ? <CheckIcon width={16} height={16} /> : index + 1}
+        </div>
         <div className="flex-1 min-w-0 text-left">
           <div className="font-medium truncate">{exercise.name}</div>
           <div className="text-xs text-muted">

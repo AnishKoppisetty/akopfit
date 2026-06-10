@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Card, Button, Textarea } from '../../components/ui'
 import { CheckIn } from '../../types'
 import { useCoach } from '../coachStore'
+import { Lightbox } from '../../components/Lightbox'
 import { prettyDate } from '../../utils'
 
 export function CheckInCard({ clientId, clientName, checkIn, unit, showClient }: {
@@ -14,6 +15,7 @@ export function CheckInCard({ clientId, clientName, checkIn, unit, showClient }:
   const { replyToCheckIn, data } = useCoach()
   const [reply, setReply] = useState('')
   const [editing, setEditing] = useState(false)
+  const [zoom, setZoom] = useState<string | null>(null)
 
   function send() {
     if (!reply.trim()) return
@@ -40,7 +42,7 @@ export function CheckInCard({ clientId, clientName, checkIn, unit, showClient }:
       {checkIn.photos.length > 0 && (
         <div className="flex gap-2 mb-3 overflow-x-auto no-scrollbar">
           {checkIn.photos.map((src, i) => (
-            <img key={i} src={src} className="h-32 w-24 object-cover rounded-lg shrink-0" />
+            <img key={i} src={src} onClick={() => setZoom(src)} className="h-32 w-24 object-cover rounded-lg shrink-0 cursor-zoom-in" />
           ))}
         </div>
       )}
@@ -76,6 +78,7 @@ export function CheckInCard({ clientId, clientName, checkIn, unit, showClient }:
           </div>
         </div>
       )}
+      {zoom && <Lightbox src={zoom} onClose={() => setZoom(null)} />}
     </Card>
   )
 }

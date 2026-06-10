@@ -79,7 +79,7 @@ export default function Settings() {
           <PlanRow label="Protein / Carbs / Fat" value={`${targets.protein} / ${targets.carbs} / ${targets.fat} g`} />
           <PlanRow label="Steps" value={targets.steps.toLocaleString()} />
           <PlanRow label="Cardio" value={`${targets.cardioMinutes} min`} />
-          <PlanRow label="Water" value={`${targets.water} glasses`} />
+          <PlanRow label="Water" value={`${targets.water} oz`} />
         </Card>
       ) : (
         <Card className="space-y-3">
@@ -92,7 +92,7 @@ export default function Settings() {
           <div className="grid grid-cols-3 gap-3">
             <Field label="Steps goal"><Input inputMode="numeric" value={targets.steps} onChange={e => updateTargets({ steps: +e.target.value })} /></Field>
             <Field label="Cardio (min)"><Input inputMode="numeric" value={targets.cardioMinutes} onChange={e => updateTargets({ cardioMinutes: +e.target.value })} /></Field>
-            <Field label="Water (glasses)"><Input inputMode="numeric" value={targets.water} onChange={e => updateTargets({ water: +e.target.value })} /></Field>
+            <Field label="Water (oz)"><Input inputMode="numeric" value={targets.water} onChange={e => updateTargets({ water: +e.target.value })} /></Field>
           </div>
         </Card>
       )}

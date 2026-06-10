@@ -15,6 +15,7 @@ export interface CloudProfile {
   start_weight: number | null
   age: number | null
   sex: string | null
+  activity_level: string | null
 }
 
 interface AuthState {
@@ -41,7 +42,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loadProfile = useCallback(async (userId: string) => {
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, role, status, onboarded, name, email, unit, height_cm, start_weight, age, sex')
+      .select('id, role, status, onboarded, name, email, unit, height_cm, start_weight, age, sex, activity_level')
       .eq('id', userId)
       .maybeSingle()
     if (error) {

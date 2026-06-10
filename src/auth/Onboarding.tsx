@@ -3,6 +3,7 @@ import { useAuth } from './AuthProvider'
 import { supabase } from '../lib/supabase'
 import { Button, Input, Field, Card } from '../components/ui'
 import { todayISO } from '../utils'
+import { ACTIVITY, ActivityKey, computeTargets } from '../lib/tdee'
 
 type Unit = 'lb' | 'kg'
 type Sex = 'Male' | 'Female' | 'Other'
@@ -27,6 +28,7 @@ export default function Onboarding() {
   const [weight, setWeight] = useState('')
   const [goal, setGoal] = useState<Goal>('cut')
   const [goalWeight, setGoalWeight] = useState('')
+  const [activity, setActivity] = useState<ActivityKey>('moderate')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
@@ -42,12 +44,15 @@ export default function Onboarding() {
     setBusy(true); setError('')
 
     const w = num(weight)
+    // Auto-calculate starting calories/macros (coach can adjust later).
+    const t = computeTargets({ sex: sex as Sex, age: num(age), heightCm, weightLb: unit === 'kg' ? w * 2.2046226218 : w, activity, goal })
     const [p1, p2, p3] = await Promise.all([
       supabase.from('profiles').update({
-        unit, sex, age: num(age), height_cm: heightCm, start_weight: w, onboarded: true,
+        unit, sex, age: num(age), height_cm: heightCm, start_weight: w, activity_level: activity, onboarded: true,
       }).eq('id', userId),
       supabase.from('plans').update({
         goal, goal_weight: goalWeight ? num(goalWeight) : w,
+        calories: t.calories, protein: t.protein, carbs: t.carbs, fat: t.fat, water: t.water,
       }).eq('user_id', userId),
       supabase.from('weight_logs').upsert(
         { user_id: userId, date: todayISO(), weight: w }, { onConflict: 'user_id,date' },
@@ -115,9 +120,26 @@ export default function Onboarding() {
           <Field label={`Goal weight (${unit}) — optional`}>
             <Input inputMode="decimal" value={goalWeight} onChange={e => setGoalWeight(e.target.value)} placeholder="0" />
           </Field>
+          <div>
+            <span className="text-xs text-muted mb-1.5 block">Activity level</span>
+            <div className="space-y-2">
+              {ACTIVITY.map(a => (
+                <button
+                  key={a.key}
+                  type="button"
+                  onClick={() => setActivity(a.key)}
+                  className={`w-full text-left px-3 py-2.5 rounded-lg transition flex items-center justify-between ${activity === a.key ? 'bg-accent text-ink-900' : 'bg-ink-700 text-white'}`}
+                >
+                  <span className="text-sm font-semibold">{a.label}</span>
+                  <span className={`text-[11px] ${activity === a.key ? 'text-ink-900/70' : 'text-muted'}`}>{a.sub}</span>
+                </button>
+              ))}
+            </div>
+          </div>
         </Card>
 
         {error && <p className="text-sm text-rose-400">{error}</p>}
+        <p className="text-[11px] text-muted text-center">We’ll set your starting calories &amp; macros from this — your coach can fine-tune them.</p>
         <Button type="submit" className="w-full" disabled={busy || !valid}>
           {busy ? 'Saving…' : 'Continue'}
         </Button>

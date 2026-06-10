@@ -2,6 +2,8 @@ import { useState, useRef, useEffect } from 'react'
 import { useStore } from '../store'
 import { Card, PageHeader, SectionTitle, Button, Field, Input, Textarea } from '../components/ui'
 import { CameraIcon, PlusIcon } from '../components/icons'
+import { Lightbox } from '../components/Lightbox'
+import { PhotoCompare } from '../components/PhotoCompare'
 import { todayISO, prettyDate } from '../utils'
 
 const RATINGS = [
@@ -14,6 +16,10 @@ export default function CheckIn() {
   const { data, addCheckIn, markRepliesSeen } = useStore()
   const { checkIns, profile } = data
   const fileRef = useRef<HTMLInputElement>(null)
+
+  const [zoom, setZoom] = useState<string | null>(null)
+  const [comparing, setComparing] = useState(false)
+  const photoCount = checkIns.filter(c => c.photos.length > 0).length
 
   // Viewing the check-in page clears the unread-reply badge.
   useEffect(() => { markRepliesSeen() }, [markRepliesSeen])
@@ -129,7 +135,7 @@ export default function CheckIn() {
         </Button>
       </Card>
 
-      <SectionTitle>Past check-ins</SectionTitle>
+      <SectionTitle action={photoCount >= 2 ? <button onClick={() => setComparing(true)} className="text-xs text-accent font-semibold">Compare</button> : undefined}>Past check-ins</SectionTitle>
       <div className="space-y-3">
         {checkIns.length === 0 && <p className="text-sm text-muted">No check-ins yet.</p>}
         {checkIns.map(ci => (
@@ -141,7 +147,7 @@ export default function CheckIn() {
             {ci.photos.length > 0 && (
               <div className="flex gap-2 mb-2 overflow-x-auto no-scrollbar">
                 {ci.photos.map((src, i) => (
-                  <img key={i} src={src} className="h-28 w-20 object-cover rounded-lg shrink-0" />
+                  <img key={i} src={src} onClick={() => setZoom(src)} className="h-28 w-20 object-cover rounded-lg shrink-0 cursor-zoom-in" />
                 ))}
               </div>
             )}
@@ -160,6 +166,9 @@ export default function CheckIn() {
           </Card>
         ))}
       </div>
+
+      {zoom && <Lightbox src={zoom} onClose={() => setZoom(null)} />}
+      {comparing && <PhotoCompare checkIns={checkIns} onClose={() => setComparing(false)} />}
     </div>
   )
 }

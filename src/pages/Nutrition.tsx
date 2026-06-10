@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useStore } from '../store'
 import { Card, Ring, ProgressBar, PageHeader, SectionTitle, Button, Field, Input, Chip } from '../components/ui'
 import { PlusIcon } from '../components/icons'
 import { dayMacros } from '../utils'
 import { useSelectedDate } from '../components/SelectedDate'
 import { DateNav } from '../components/DateNav'
+import { searchFoods, FoodResult } from '../lib/foodSearch'
 import { Meal, SavedFood } from '../types'
 
 const MEALS: Meal[] = ['Breakfast', 'Lunch', 'Dinner', 'Snacks']
@@ -126,7 +127,7 @@ function AddFoodSheet({ meal, library, onClose, onAdd }: {
   onClose: () => void
   onAdd: (food: { name: string; calories: number; protein: number; carbs: number; fat: number }, alsoSave: boolean) => void
 }) {
-  const [tab, setTab] = useState<'library' | 'custom'>('library')
+  const [tab, setTab] = useState<'library' | 'search' | 'custom'>('search')
   const [q, setQ] = useState('')
   const [name, setName] = useState('')
   const [cal, setCal] = useState('')
@@ -135,7 +136,31 @@ function AddFoodSheet({ meal, library, onClose, onAdd }: {
   const [f, setF] = useState('')
   const [save, setSave] = useState(false)
 
+  // Open Food Facts search
+  const [sq, setSq] = useState('')
+  const [results, setResults] = useState<FoodResult[]>([])
+  const [searching, setSearching] = useState(false)
+  const [searchErr, setSearchErr] = useState('')
+
   const filtered = library.filter(l => l.name.toLowerCase().includes(q.toLowerCase()))
+
+  useEffect(() => {
+    if (tab !== 'search' || sq.trim().length < 2) { setResults([]); return }
+    let cancelled = false
+    setSearching(true); setSearchErr('')
+    const t = setTimeout(() => {
+      searchFoods(sq.trim())
+        .then(r => { if (!cancelled) setResults(r) })
+        .catch(() => { if (!cancelled) setSearchErr('Couldn’t reach the food database. Try again.') })
+        .finally(() => { if (!cancelled) setSearching(false) })
+    }, 400)
+    return () => { cancelled = true; clearTimeout(t) }
+  }, [sq, tab])
+
+  function pickResult(r: FoodResult) {
+    setName(r.name); setCal(String(r.calories)); setP(String(r.protein)); setC(String(r.carbs)); setF(String(r.fat))
+    setTab('custom')
+  }
 
   function addCustom() {
     onAdd({ name: name || 'Food', calories: n(cal), protein: n(p), carbs: n(c), fat: n(f) }, save)
@@ -155,11 +180,37 @@ function AddFoodSheet({ meal, library, onClose, onAdd }: {
         </div>
 
         <div className="flex gap-2 mb-4">
-          <Chip active={tab === 'library'} onClick={() => setTab('library')}>Quick add</Chip>
+          <Chip active={tab === 'search'} onClick={() => setTab('search')}>Search</Chip>
+          <Chip active={tab === 'library'} onClick={() => setTab('library')}>Saved</Chip>
           <Chip active={tab === 'custom'} onClick={() => setTab('custom')}>Custom</Chip>
         </div>
 
-        {tab === 'library' ? (
+        {tab === 'search' ? (
+          <>
+            <Input placeholder="Search foods (e.g. greek yogurt)…" value={sq} onChange={e => setSq(e.target.value)} className="mb-3" autoFocus />
+            {searching && <p className="text-sm text-muted text-center py-3">Searching…</p>}
+            {searchErr && <p className="text-sm text-rose-400 text-center py-2">{searchErr}</p>}
+            <div className="space-y-2">
+              {results.map((r, i) => (
+                <button
+                  key={i}
+                  onClick={() => pickResult(r)}
+                  className="w-full flex items-center justify-between bg-ink-700 rounded-xl px-4 py-3 text-left active:scale-[0.98] transition"
+                >
+                  <div className="min-w-0 mr-2">
+                    <div className="text-sm truncate">{r.name}</div>
+                    <div className="text-[11px] text-muted truncate">{r.brand ? `${r.brand} · ` : ''}{r.portion} · {r.protein}p {r.carbs}c {r.fat}f</div>
+                  </div>
+                  <div className="text-sm font-semibold tabular-nums text-accent shrink-0">{r.calories}</div>
+                </button>
+              ))}
+              {!searching && sq.trim().length >= 2 && results.length === 0 && !searchErr && (
+                <p className="text-sm text-muted text-center py-4">No results. Try another term or the Custom tab.</p>
+              )}
+              {sq.trim().length < 2 && <p className="text-[11px] text-muted text-center py-2">Powered by Open Food Facts. Tap a result to adjust the portion before adding.</p>}
+            </div>
+          </>
+        ) : tab === 'library' ? (
           <>
             <Input placeholder="Search foods…" value={q} onChange={e => setQ(e.target.value)} className="mb-3" />
             <div className="space-y-2">
