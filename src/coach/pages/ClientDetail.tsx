@@ -6,6 +6,7 @@ import { Card, ProgressBar, Button, Field, Input } from '../../components/ui'
 import { Avatar, changeColor } from './Roster'
 import { CheckInCard } from '../components/CheckInCard'
 import { PhotoCompare } from '../../components/PhotoCompare'
+import { cloudResetClientPassword } from '../cloud'
 import { clientStatus, goalLabel } from '../derive'
 import { shortDate } from '../../utils'
 import { FootprintsIcon, HeartIcon, FlameIcon, DumbbellIcon, CheckIcon } from '../../components/icons'
@@ -179,16 +180,22 @@ export default function ClientDetail() {
         </div>
       )}
 
-      {c.status === 'active' && (
-        <div className="mt-8">
-          <Button
-            variant="outline"
-            className="w-full text-rose-400 border-rose-400/40"
-            onClick={() => { if (confirm(`Remove ${c.name}? They’ll lose access (their data is kept).`)) { setClientStatus(c.id, 'removed'); navigate('/coach') } }}
-          >
-            Remove client
-          </Button>
-        </div>
+      {c.status !== 'removed' && (
+        <>
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted mb-3 mt-8">Manage</h2>
+          <div className="space-y-3">
+            <ResetClientPassword clientId={c.id} clientName={c.name} />
+            {c.status === 'active' && (
+              <Button
+                variant="outline"
+                className="w-full text-rose-400 border-rose-400/40"
+                onClick={() => { if (confirm(`Remove ${c.name}? They’ll lose access (their data is kept).`)) { setClientStatus(c.id, 'removed'); navigate('/coach') } }}
+              >
+                Remove client
+              </Button>
+            )}
+          </div>
+        </>
       )}
 
       {editing && <EditPlanSheet client={c} onClose={() => setEditing(false)} />}
@@ -334,4 +341,49 @@ function AdherenceRow({ Icon, label, value, target, unit, color }: any) {
       <ProgressBar value={value} max={target} color={color} />
     </div>
   )
+}
+
+function ResetClientPassword({ clientId, clientName }: { clientId: string; clientName: string }) {
+  const [open, setOpen] = useState(false)
+  const [pw, setPw] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null)
+  const first = clientName.split(' ')[0]
+
+  function start() { setPw(genPassword()); setResult(null); setOpen(true) }
+
+  async function submit() {
+    if (pw.length < 6) { setResult({ ok: false, text: 'Password must be at least 6 characters.' }); return }
+    setBusy(true); setResult(null)
+    const { ok, error } = await cloudResetClientPassword(clientId, pw)
+    setBusy(false)
+    setResult(ok
+      ? { ok: true, text: `Done ✓ — give ${first} this password; they can change it later in Settings.` }
+      : { ok: false, text: error ?? 'Could not set the password.' })
+  }
+
+  if (!open) {
+    return <Button variant="outline" className="w-full" onClick={start}>Set / reset password</Button>
+  }
+  return (
+    <Card className="space-y-3">
+      <div className="text-sm font-semibold">New password for {first}</div>
+      <Field label="Password (share this with them)">
+        <Input value={pw} onChange={e => setPw(e.target.value)} autoCapitalize="none" autoCorrect="off" />
+      </Field>
+      {result && <p className={`text-sm ${result.ok ? 'text-accent' : 'text-rose-400'}`}>{result.text}</p>}
+      <div className="flex gap-2">
+        <Button className="flex-1" onClick={submit} disabled={busy}>{busy ? 'Setting…' : 'Set password'}</Button>
+        <Button variant="ghost" onClick={() => setPw(genPassword())}>Regenerate</Button>
+        <Button variant="ghost" onClick={() => setOpen(false)}>Close</Button>
+      </div>
+    </Card>
+  )
+}
+
+function genPassword(): string {
+  const chars = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  let s = ''
+  for (let i = 0; i < 10; i++) s += chars[Math.floor(Math.random() * chars.length)]
+  return s
 }

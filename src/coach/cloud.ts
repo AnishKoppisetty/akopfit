@@ -174,3 +174,10 @@ export async function cloudRejectProposal(userId: string) {
   }).eq('user_id', userId)
   if (error) throw error
 }
+
+export async function cloudResetClientPassword(clientId: string, password: string): Promise<{ ok: boolean; error?: string }> {
+  const { data, error } = await supabase.functions.invoke('reset-client-password', { body: { clientId, password } })
+  if (error) return { ok: false, error: error.message }
+  if (data?.error) return { ok: false, error: data.error }
+  return { ok: true }
+}
