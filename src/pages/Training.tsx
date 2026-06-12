@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store'
 import { Card, PageHeader, Chip, Button, Input } from '../components/ui'
@@ -147,20 +147,23 @@ function ExerciseRow({ index, exercise, loggable, date }: { index: number; exerc
   const [noteVal, setNoteVal] = useState(storedNote)
   function saveNote() { if (noteVal !== storedNote) setExerciseNote(exercise.name, noteVal) }
 
-  const loggedCount = logged.filter(s => s.weight > 0 || s.reps > 0).length
-
-  function ensureRows(): SetEntry[] {
-    if (logged.length >= exercise.sets) return logged
-    const rows = [...logged]
+  // Local input state so typing is instant (no app-wide re-render / cloud write
+  // per keystroke). Commit to the store on blur. Re-seed from the store when the
+  // logged data changes externally and we're not actively editing.
+  const seed = useCallback((): SetEntry[] => {
+    const rows = logged.slice()
     while (rows.length < exercise.sets) rows.push({ weight: 0, reps: 0 })
     return rows
-  }
+  }, [JSON.stringify(logged), exercise.sets])
+  const [rows, setRows] = useState<SetEntry[]>(seed)
+  const editingRef = useRef(false)
+  useEffect(() => { if (!editingRef.current) setRows(seed()) }, [seed])
 
-  function update(i: number, patch: Partial<SetEntry>) {
-    const rows = ensureRows().map((s, j) => (j === i ? { ...s, ...patch } : s))
-    setExerciseSets(date, exercise.name, rows)
-  }
+  const updateLocal = (i: number, patch: Partial<SetEntry>) =>
+    setRows(rs => rs.map((s, j) => (j === i ? { ...s, ...patch } : s)))
+  const commit = () => { editingRef.current = false; setExerciseSets(date, exercise.name, rows) }
 
+  const loggedCount = rows.filter(s => s.weight > 0 || s.reps > 0).length
   const filled = loggedCount > 0
 
   return (
@@ -187,11 +190,11 @@ function ExerciseRow({ index, exercise, loggable, date }: { index: number; exerc
           <div className="grid grid-cols-[2rem_1fr_1fr] gap-2 text-[11px] text-muted px-1">
             <span>Set</span><span>Weight</span><span>Reps</span>
           </div>
-          {ensureRows().map((s, i) => (
+          {rows.map((s, i) => (
             <div key={i} className="grid grid-cols-[2rem_1fr_1fr] gap-2 items-center">
               <span className="text-sm text-muted text-center">{i + 1}</span>
-              <Input inputMode="decimal" value={s.weight || ''} placeholder={last?.[i] ? `${last[i].weight}` : '0'} onChange={e => update(i, { weight: +e.target.value || 0 })} className="py-2 text-center" />
-              <Input inputMode="numeric" value={s.reps || ''} placeholder={last?.[i] ? `${last[i].reps}` : exercise.reps} onChange={e => update(i, { reps: +e.target.value || 0 })} className="py-2 text-center" />
+              <Input inputMode="decimal" value={s.weight || ''} placeholder={last?.[i] ? `${last[i].weight}` : '0'} onFocus={() => { editingRef.current = true }} onChange={e => updateLocal(i, { weight: +e.target.value || 0 })} onBlur={commit} className="py-2 text-center" />
+              <Input inputMode="numeric" value={s.reps || ''} placeholder={last?.[i] ? `${last[i].reps}` : exercise.reps} onFocus={() => { editingRef.current = true }} onChange={e => updateLocal(i, { reps: +e.target.value || 0 })} onBlur={commit} className="py-2 text-center" />
             </div>
           ))}
           {last && (

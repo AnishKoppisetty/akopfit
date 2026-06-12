@@ -1,7 +1,7 @@
-import { createContext, useContext, useEffect, useState, ReactNode, useCallback, useMemo } from 'react'
+import { createContext, useContext, useEffect, useState, ReactNode, useCallback, useMemo, useRef } from 'react'
 import { AppData, DailyLog, CheckIn, WeightLog, Targets, Profile, TrainingDay, FoodEntry, SavedFood, SetEntry } from './types'
 import { seedData } from './seed'
-import { todayISO, uid } from './utils'
+import { todayISO, uid, withTimeout } from './utils'
 import { useAuth } from './auth/AuthProvider'
 import { isSupabaseConfigured } from './lib/supabase'
 import { subscribeToTables, debounce } from './lib/realtime'
@@ -73,19 +73,35 @@ function emptyData(): AppData {
 function CloudStoreProvider({ userId, children }: { userId: string; children: ReactNode }) {
   const [data, setData] = useState<AppData>(emptyData)
   const [loading, setLoading] = useState(true)
+  const loadedRef = useRef(false)
 
+  // Timeout + retry so a stalled first fetch (cold iOS PWA launch) can't leave
+  // the app stuck on "Loading…".
   const reload = useCallback(async () => {
     try {
-      const fresh = await fetchClientData(userId)
+      const fresh = await withTimeout(fetchClientData(userId), 8000)
       setData(fresh)
+      loadedRef.current = true
     } catch (e) {
       console.warn('[store] failed to load client data', e)
+      if (!loadedRef.current) setTimeout(() => reload(), 2000) // keep retrying until first success
     } finally {
       setLoading(false)
     }
   }, [userId])
 
   useEffect(() => { reload() }, [reload])
+
+  // Refetch when the app regains focus (iOS PWA resume / recover from a stall).
+  useEffect(() => {
+    const onVisible = () => { if (document.visibilityState === 'visible') reload() }
+    document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener('online', onVisible)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('online', onVisible)
+    }
+  }, [reload])
 
   // Live sync: refetch when the coach edits the plan/program/replies, or this
   // user's data changes on another device.

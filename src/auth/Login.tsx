@@ -6,13 +6,17 @@ import { DumbbellIcon } from '../components/icons'
 type Mode = 'signin' | 'signup'
 
 export default function Login() {
-  const { signInWithPassword, signUpWithPassword } = useAuth()
+  const { signInWithPassword, signUpWithPassword, resetPassword } = useAuth()
   const [mode, setMode] = useState<Mode>('signin')
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+
+  // Forgot-password sub-flow
+  const [forgot, setForgot] = useState(false)
+  const [resetSent, setResetSent] = useState(false)
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -31,8 +35,48 @@ export default function Login() {
     // on success, AuthProvider's auth-state listener routes the user
   }
 
+  async function sendReset(e: React.FormEvent) {
+    e.preventDefault()
+    setError('')
+    if (!email.trim()) return
+    setBusy(true)
+    const { error } = await resetPassword(email)
+    setBusy(false)
+    if (error) setError(error)
+    else setResetSent(true)
+  }
+
   function switchMode(m: Mode) {
     setMode(m); setError('')
+  }
+
+  if (forgot) {
+    return (
+      <div className="min-h-full max-w-sm mx-auto px-6 flex flex-col justify-center pt-safe pb-safe">
+        <div className="h-16 w-16 rounded-2xl bg-accent/15 flex items-center justify-center mb-6">
+          <DumbbellIcon className="text-accent" width={32} height={32} />
+        </div>
+        <h1 className="text-3xl font-bold mb-1">Reset password</h1>
+        {resetSent ? (
+          <>
+            <p className="text-sm text-muted mt-3 leading-relaxed">
+              If an account exists for <span className="text-white">{email}</span>, we’ve sent a reset link. Open it on this device to set a new password.
+            </p>
+            <button onClick={() => { setForgot(false); setResetSent(false) }} className="text-sm text-accent underline mt-6 self-start">← Back to sign in</button>
+          </>
+        ) : (
+          <>
+            <p className="text-sm text-muted mb-7">Enter your email and we’ll send you a link to set a new password.</p>
+            <form onSubmit={sendReset} className="space-y-3">
+              <Input type="email" inputMode="email" autoComplete="email" placeholder="you@email.com" value={email} onChange={e => { setEmail(e.target.value); setError('') }} autoFocus />
+              {error && <p className="text-sm text-rose-400">{error}</p>}
+              <Button type="submit" className="w-full" disabled={busy || !email.trim()}>{busy ? 'Sending…' : 'Send reset link'}</Button>
+            </form>
+            <button onClick={() => { setForgot(false); setError('') }} className="text-sm text-muted underline mt-6 self-start">← Back to sign in</button>
+          </>
+        )}
+      </div>
+    )
   }
 
   return (
@@ -73,6 +117,12 @@ export default function Login() {
           {busy ? 'Please wait…' : mode === 'signin' ? 'Sign in' : 'Create account'}
         </Button>
       </form>
+
+      {mode === 'signin' && (
+        <button onClick={() => { setForgot(true); setError('') }} className="text-xs text-muted underline mt-4 text-center">
+          Forgot password?
+        </button>
+      )}
 
       <p className="text-xs text-muted mt-6 text-center">
         {mode === 'signin' ? (

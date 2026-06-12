@@ -1,6 +1,7 @@
-import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react'
+import { createContext, useContext, useEffect, useState, ReactNode, useCallback, useRef } from 'react'
 import { CoachData, CoachClient } from './types'
 import { Targets, TrainingDay } from '../types'
+import { withTimeout } from '../utils'
 import { coachSeed } from './seed'
 import { useAuth } from '../auth/AuthProvider'
 import { isSupabaseConfigured } from '../lib/supabase'
@@ -46,19 +47,33 @@ export function CoachProvider({ children }: { children: ReactNode }) {
 function CloudCoachProvider({ coachName, children }: { coachName: string; children: ReactNode }) {
   const [data, setData] = useState<CoachData>({ coachName, clients: [] })
   const [loading, setLoading] = useState(true)
+  const loadedRef = useRef(false)
 
   const refresh = useCallback(async () => {
     try {
-      const fresh = await fetchCoachData(coachName)
+      const fresh = await withTimeout(fetchCoachData(coachName), 8000)
       setData(fresh)
+      loadedRef.current = true
     } catch (e) {
       console.warn('[coach] failed to load clients', e)
+      if (!loadedRef.current) setTimeout(() => refresh(), 2000)
     } finally {
       setLoading(false)
     }
   }, [coachName])
 
   useEffect(() => { refresh() }, [refresh])
+
+  // Refetch when the dashboard regains focus (resume / recover from a stall).
+  useEffect(() => {
+    const onVisible = () => { if (document.visibilityState === 'visible') refresh() }
+    document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener('online', onVisible)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('online', onVisible)
+    }
+  }, [refresh])
 
   // Live dashboard: refetch when any client logs data, checks in, or signs up.
   useEffect(() => {

@@ -10,16 +10,18 @@ import EditPlan from './pages/EditPlan'
 import CoachApp from './coach/CoachApp'
 import { useAuth } from './auth/AuthProvider'
 import Login from './auth/Login'
+import ResetPassword from './auth/ResetPassword'
 import Onboarding from './auth/Onboarding'
 import { AwaitingApproval, Removed } from './auth/StatusScreens'
 import { SelectedDateProvider } from './components/SelectedDate'
 import { DumbbellIcon } from './components/icons'
 
 export default function App() {
-  const { configured, loading, session } = useAuth()
+  const { configured, loading, session, recovery } = useAuth()
 
   // When the backend is configured, require a signed-in session.
   if (configured) {
+    if (recovery) return <ResetPassword />
     if (loading) return <Splash />
     if (!session) return <Login />
   }

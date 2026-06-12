@@ -45,6 +45,14 @@ export function uid(): string {
   return Math.random().toString(36).slice(2, 10)
 }
 
+// Reject if a promise (or thenable, e.g. a Supabase query) doesn't settle in time.
+export function withTimeout<T>(p: PromiseLike<T>, ms: number): Promise<T> {
+  return Promise.race([
+    Promise.resolve(p),
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error('timeout')), ms)),
+  ])
+}
+
 import type { DailyLog } from './types'
 
 // Total macros for a day: sum of food entries, or fall back to manual totals.
