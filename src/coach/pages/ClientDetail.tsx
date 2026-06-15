@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, ReferenceLine } from 'recharts'
 import { useCoach } from '../coachStore'
@@ -8,9 +8,9 @@ import { CheckInCard } from '../components/CheckInCard'
 import { PhotoCompare } from '../../components/PhotoCompare'
 import { cloudResetClientPassword } from '../cloud'
 import { clientStatus, goalLabel } from '../derive'
-import { shortDate } from '../../utils'
-import { FootprintsIcon, HeartIcon, FlameIcon, DumbbellIcon, CheckIcon } from '../../components/icons'
-import { CoachClient } from '../types'
+import { shortDate, prettyDate } from '../../utils'
+import { FootprintsIcon, HeartIcon, FlameIcon, DumbbellIcon, CheckIcon, ChevronRight } from '../../components/icons'
+import { CoachClient, WorkoutSession } from '../types'
 import { Goal } from '../../types'
 
 export default function ClientDetail() {
@@ -117,6 +117,8 @@ export default function ClientDetail() {
       <Card className="space-y-3">
         <AdherenceRow Icon={FlameIcon} label="Calories" value={t.calories} target={c.targets.calories} unit="cal" color="bg-accent" />
         <AdherenceRow Icon={DumbbellIcon} label="Protein" value={t.protein} target={c.targets.protein} unit="g" color="bg-rose-400" />
+        <AdherenceRow Icon={FlameIcon} label="Carbs" value={t.carbs} target={c.targets.carbs} unit="g" color="bg-sky-400" />
+        <AdherenceRow Icon={FlameIcon} label="Fat" value={t.fat} target={c.targets.fat} unit="g" color="bg-amber-400" />
         <AdherenceRow Icon={FootprintsIcon} label="Steps" value={t.steps} target={c.targets.steps} unit="" color="bg-emerald-400" />
         <AdherenceRow Icon={HeartIcon} label="Cardio" value={t.cardioMinutes} target={c.targets.cardioMinutes} unit="min" color="bg-rose-400" />
         <div className="flex items-center gap-2 pt-1 text-sm">
@@ -162,6 +164,9 @@ export default function ClientDetail() {
           ))}
         </Card>
       </Link>
+
+      {/* Logged workouts */}
+      <LoggedWorkouts clientId={c.id} />
 
       {/* Check-ins */}
       <div className="flex items-center justify-between mb-3 mt-6">
@@ -328,6 +333,52 @@ function MiniStat({ value, unit, label, color }: { value: string; unit: string; 
       <div className={`text-xl font-bold tabular-nums leading-none ${color ?? ''}`}>{value}<span className="text-xs text-muted font-normal"> {unit}</span></div>
       <div className="text-[11px] text-muted mt-1">{label}</div>
     </Card>
+  )
+}
+
+function LoggedWorkouts({ clientId }: { clientId: string }) {
+  const { loadClientWorkouts } = useCoach()
+  const [sessions, setSessions] = useState<WorkoutSession[] | null>(null)
+  const [openDate, setOpenDate] = useState<string | null>(null)
+
+  useEffect(() => {
+    let alive = true
+    loadClientWorkouts(clientId).then(s => { if (alive) setSessions(s) }).catch(() => { if (alive) setSessions([]) })
+    return () => { alive = false }
+  }, [clientId, loadClientWorkouts])
+
+  if (!sessions || sessions.length === 0) return null
+
+  return (
+    <>
+      <h2 className="text-sm font-semibold uppercase tracking-wider text-muted mb-3 mt-6">Logged workouts</h2>
+      <div className="space-y-2">
+        {sessions.map(s => {
+          const isOpen = openDate === s.date
+          return (
+            <Card key={s.date} className="py-3">
+              <button className="w-full flex items-center justify-between" onClick={() => setOpenDate(isOpen ? null : s.date)}>
+                <div className="text-left">
+                  <div className="font-medium">{s.name}</div>
+                  <div className="text-xs text-muted">{prettyDate(s.date)} · {s.exercises.length} exercise{s.exercises.length === 1 ? '' : 's'} logged</div>
+                </div>
+                <ChevronRight className={`text-muted transition ${isOpen ? 'rotate-90' : ''}`} />
+              </button>
+              {isOpen && s.exercises.length > 0 && (
+                <div className="mt-3 space-y-1.5 border-t border-ink-600/50 pt-3">
+                  {s.exercises.map(ex => (
+                    <div key={ex.name} className="flex justify-between text-sm">
+                      <span className="text-muted truncate mr-2">{ex.name}</span>
+                      <span className="tabular-nums shrink-0">{ex.sets.map(x => `${x.weight}×${x.reps}`).join(', ')}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+          )
+        })}
+      </div>
+    </>
   )
 }
 

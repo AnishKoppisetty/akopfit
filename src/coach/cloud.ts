@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabase'
-import { CoachData, CoachClient } from './types'
-import { Targets, CheckIn, TrainingDay } from '../types'
+import { CoachData, CoachClient, WorkoutSession } from './types'
+import { Targets, CheckIn, TrainingDay, SetEntry } from '../types'
 import { todayISO, daysBetween, toISO } from '../utils'
 import { seedData } from '../seed'
 
@@ -12,7 +12,7 @@ interface PlanRow { user_id: string; goal: 'cut' | 'maintain' | 'bulk'; goal_wei
 interface WeightRow { user_id: string; date: string; weight: number }
 interface CheckInRow { id: string; user_id: string; date: string; weight: number | null; message: string | null; energy: number | null; sleep: number | null; hunger: number | null; adherence: number | null; coach_reply: string | null; photo_paths: string[] }
 interface DailyRow { user_id: string; date: string; steps: number | null; cardio_minutes: number | null; water: number | null; workout_done: boolean | null }
-interface FoodRow { user_id: string; calories: number | null; protein: number | null }
+interface FoodRow { user_id: string; calories: number | null; protein: number | null; carbs: number | null; fat: number | null }
 
 const DEFAULT_TARGETS: Targets = { calories: 2200, protein: 180, carbs: 200, fat: 60, steps: 10000, cardioMinutes: 30, water: 8 }
 
@@ -31,7 +31,7 @@ export async function fetchCoachData(coachName: string): Promise<CoachData> {
     supabase.from('weight_logs').select('user_id, date, weight').order('date', { ascending: true }),
     supabase.from('check_ins').select('*').order('date', { ascending: false }),
     supabase.from('daily_logs').select('user_id, date, steps, cardio_minutes, water, workout_done').eq('date', today),
-    supabase.from('food_entries').select('user_id, calories, protein').eq('date', today),
+    supabase.from('food_entries').select('user_id, calories, protein, carbs, fat').eq('date', today),
   ])
 
   const planBy = new Map<string, PlanRow>()
@@ -59,11 +59,13 @@ export async function fetchCoachData(coachName: string): Promise<CoachData> {
   const dailyBy = new Map<string, DailyRow>()
   ;(daily.data as DailyRow[] | null)?.forEach(d => dailyBy.set(d.user_id, d))
 
-  const foodBy = new Map<string, { calories: number; protein: number }>()
+  const foodBy = new Map<string, { calories: number; protein: number; carbs: number; fat: number }>()
   ;(foods.data as FoodRow[] | null)?.forEach(f => {
-    const cur = foodBy.get(f.user_id) ?? { calories: 0, protein: 0 }
+    const cur = foodBy.get(f.user_id) ?? { calories: 0, protein: 0, carbs: 0, fat: 0 }
     cur.calories += f.calories ?? 0
     cur.protein += f.protein ?? 0
+    cur.carbs += f.carbs ?? 0
+    cur.fat += f.fat ?? 0
     foodBy.set(f.user_id, cur)
   })
 
@@ -116,6 +118,8 @@ export async function fetchCoachData(coachName: string): Promise<CoachData> {
       today: {
         calories: food?.calories ?? 0,
         protein: food?.protein ?? 0,
+        carbs: food?.carbs ?? 0,
+        fat: food?.fat ?? 0,
         steps: d?.steps ?? 0,
         cardioMinutes: d?.cardio_minutes ?? 0,
         water: d?.water ?? 0,
@@ -125,6 +129,51 @@ export async function fetchCoachData(coachName: string): Promise<CoachData> {
   }))
 
   return { coachName, clients }
+}
+
+// Load a single client's logged workout history (sets grouped by date) so the
+// coach can review what they actually did.
+export async function fetchClientWorkouts(clientId: string): Promise<WorkoutSession[]> {
+  const [dailyRes, setsRes, programRes] = await Promise.all([
+    supabase.from('daily_logs').select('date, workout_done, training_day_id, workout_name').eq('user_id', clientId),
+    supabase.from('workout_sets').select('date, exercise, set_index, weight, reps').eq('user_id', clientId),
+    supabase.from('programs').select('days').eq('user_id', clientId).maybeSingle(),
+  ])
+
+  const programDays = (programRes.data as { days: TrainingDay[] } | null)?.days ?? []
+  const focusFor = (id?: string | null) => programDays.find(d => d.id === id)?.focus
+
+  // group sets by date -> exercise (sparse by set_index, then compacted)
+  const setsByDate = new Map<string, Record<string, SetEntry[]>>()
+  for (const s of (setsRes.data as { date: string; exercise: string; set_index: number; weight: number | null; reps: number | null }[] | null) ?? []) {
+    const byEx = setsByDate.get(s.date) ?? {}
+    ;(byEx[s.exercise] ??= [])[s.set_index] = { weight: Number(s.weight) || 0, reps: s.reps ?? 0 }
+    setsByDate.set(s.date, byEx)
+  }
+
+  const dailyByDate = new Map<string, { workout_done: boolean | null; training_day_id: string | null; workout_name: string | null }>()
+  for (const d of (dailyRes.data as { date: string; workout_done: boolean | null; training_day_id: string | null; workout_name: string | null }[] | null) ?? []) {
+    dailyByDate.set(d.date, d)
+  }
+
+  const dates = new Set<string>([...setsByDate.keys()])
+  for (const [date, d] of dailyByDate) if (d.workout_done) dates.add(date)
+
+  const sessions: WorkoutSession[] = [...dates].map(date => {
+    const d = dailyByDate.get(date)
+    const byEx = setsByDate.get(date) ?? {}
+    const exercises = Object.entries(byEx).map(([name, sets]) => ({
+      name,
+      sets: sets.filter(Boolean).filter(x => x.weight > 0 || x.reps > 0),
+    })).filter(e => e.sets.length > 0)
+    return {
+      date,
+      name: d?.workout_name || focusFor(d?.training_day_id) || 'Workout',
+      exercises,
+    }
+  })
+
+  return sessions.sort((a, b) => b.date.localeCompare(a.date)).slice(0, 30)
 }
 
 // ---- writes ----

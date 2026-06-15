@@ -73,6 +73,9 @@ export interface DailyLog {
   water?: number // glasses
   workoutDone?: boolean
   trainingDayId?: string
+  // name of the training day at the time it was logged (snapshot so history
+  // survives later program edits, where day ids change)
+  workoutName?: string
   // logged sets keyed by exercise name
   sets?: Record<string, SetEntry[]>
 }

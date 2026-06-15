@@ -127,7 +127,10 @@ function CloudStoreProvider({ userId, children }: { userId: string; children: Re
   const upsertDailyLog = useCallback((date: string, patch: Partial<DailyLog>) => {
     setData(d => ({ ...d, dailyLogs: patchDaily(d.dailyLogs, date, patch) }))
     cloudUpsertDaily(userId, date, patch).catch(e => console.warn('[store] daily upsert failed', e))
-  }, [userId])
+    if (patch.workoutDone === true) {
+      sendPush({ target: 'coach', title: 'Workout completed 💪', body: `${data.profile.name} finished their ${patch.workoutName ?? 'workout'}.`, url: `/coach/client/${userId}` })
+    }
+  }, [userId, data.profile.name])
 
   const setWater = useCallback((date: string, glasses: number) => {
     const water = Math.max(0, glasses)

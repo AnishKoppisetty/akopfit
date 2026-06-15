@@ -77,7 +77,7 @@ export default function Training() {
           <Button
             className="w-full mt-4"
             variant={done ? 'ghost' : 'primary'}
-            onClick={() => upsertDailyLog(date, { workoutDone: !done, trainingDayId: day.id })}
+            onClick={() => upsertDailyLog(date, { workoutDone: !done, trainingDayId: day.id, workoutName: day.focus })}
           >
             {done ? <><CheckIcon width={18} height={18} /> Workout completed</> : 'Mark workout complete'}
           </Button>
@@ -113,7 +113,7 @@ function PreviousWorkouts() {
             <Card key={s.date} className="py-3">
               <button className="w-full flex items-center justify-between" onClick={() => setOpenDate(isOpen ? null : s.date)}>
                 <div className="text-left">
-                  <div className="font-medium">{focusFor(s.trainingDayId) || 'Workout'}</div>
+                  <div className="font-medium">{s.workoutName || focusFor(s.trainingDayId) || 'Workout'}</div>
                   <div className="text-xs text-muted">{prettyDate(s.date)} · {entries.length} exercise{entries.length === 1 ? '' : 's'} logged</div>
                 </div>
                 <ChevronRight className={`text-muted transition ${isOpen ? 'rotate-90' : ''}`} />

@@ -30,7 +30,10 @@ export function ProgramBuilder({ days, onChange, showTemplate = true }: {
 }) {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
 
-  const mutate = (fn: (draft: TrainingDay[]) => void) => { const copy = cloneDays(days); fn(copy); onChange(copy) }
+  // The day name lives in `focus`; `label` is just the sequential "Day N" shown
+  // around the app, so keep it in sync with position on every change.
+  const commit = (next: TrainingDay[]) => onChange(next.map((d, i) => ({ ...d, label: `Day ${i + 1}` })))
+  const mutate = (fn: (draft: TrainingDay[]) => void) => { const copy = cloneDays(days); fn(copy); commit(copy) }
   const addDay = () => mutate(d => d.push({ id: uid(), label: `Day ${d.length + 1}`, focus: 'New day', rest: false, exercises: [] }))
   const removeDay = (dayId: string) => mutate(d => { const i = d.findIndex(x => x.id === dayId); if (i >= 0) d.splice(i, 1) })
   const setDayField = (dayId: string, patch: Partial<TrainingDay>) => mutate(d => { const day = d.find(x => x.id === dayId); if (day) Object.assign(day, patch) })
@@ -40,15 +43,15 @@ export function ProgramBuilder({ days, onChange, showTemplate = true }: {
     const ex = d.find(x => x.id === dayId)?.exercises.find(e => e.id === exId)
     if (ex) Object.assign(ex, patch)
   })
-  const loadTemplate = () => { if (confirm('Replace with the default Push/Pull/Legs template?')) onChange(withIds(cloneDays(seedData().split))) }
+  const loadTemplate = () => { if (confirm('Replace with the default Push/Pull/Legs template?')) commit(withIds(cloneDays(seedData().split))) }
 
   const onDaysDragEnd = (e: DragEndEvent) => {
     if (!e.over || e.active.id === e.over.id) return
-    onChange(arrayMove(days, days.findIndex(x => x.id === e.active.id), days.findIndex(x => x.id === e.over!.id)))
+    commit(arrayMove(days, days.findIndex(x => x.id === e.active.id), days.findIndex(x => x.id === e.over!.id)))
   }
   const onExercisesDragEnd = (dayId: string) => (e: DragEndEvent) => {
     if (!e.over || e.active.id === e.over.id) return
-    onChange(days.map(day => {
+    commit(days.map(day => {
       if (day.id !== dayId) return day
       const oldI = day.exercises.findIndex(x => x.id === e.active.id)
       const newI = day.exercises.findIndex(x => x.id === e.over!.id)
@@ -66,10 +69,11 @@ export function ProgramBuilder({ days, onChange, showTemplate = true }: {
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDaysDragEnd}>
         <SortableContext items={days.map(d => d.id)} strategy={verticalListSortingStrategy}>
           <div className="space-y-3">
-            {days.map(day => (
+            {days.map((day, index) => (
               <SortableDay
                 key={day.id}
                 day={day}
+                index={index}
                 sensors={sensors}
                 onField={patch => setDayField(day.id, patch)}
                 onRemove={() => removeDay(day.id)}
@@ -90,8 +94,9 @@ export function ProgramBuilder({ days, onChange, showTemplate = true }: {
   )
 }
 
-function SortableDay({ day, sensors, onField, onRemove, onAddExercise, onExerciseChange, onExerciseRemove, onExercisesDragEnd }: {
+function SortableDay({ day, index, sensors, onField, onRemove, onAddExercise, onExerciseChange, onExerciseRemove, onExercisesDragEnd }: {
   day: TrainingDay
+  index: number
   sensors: ReturnType<typeof useSensors>
   onField: (patch: Partial<TrainingDay>) => void
   onRemove: () => void
@@ -110,8 +115,8 @@ function SortableDay({ day, sensors, onField, onRemove, onAddExercise, onExercis
           <button className="touch-none cursor-grab text-muted shrink-0 px-0.5" {...attributes} {...listeners} aria-label="Drag day">
             <GripIcon width={18} height={18} />
           </button>
-          <Input value={day.label} onChange={e => onField({ label: e.target.value })} className="w-20 py-2 font-semibold px-2" placeholder="Day 1" />
-          <Input value={day.focus} onChange={e => onField({ focus: e.target.value })} className="flex-1 py-2" placeholder="Push / Legs…" />
+          <span className="text-[11px] font-semibold text-muted shrink-0 w-9">Day {index + 1}</span>
+          <Input value={day.focus} onChange={e => onField({ focus: e.target.value })} className="flex-1 py-2 font-semibold" placeholder="Push + Biceps" />
           <button onClick={onRemove} className="text-muted hover:text-rose-400 text-xl px-1 shrink-0">×</button>
         </div>
 

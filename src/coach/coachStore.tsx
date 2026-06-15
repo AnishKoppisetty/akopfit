@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, ReactNode, useCallback, useRef } from 'react'
-import { CoachData, CoachClient } from './types'
+import { CoachData, CoachClient, WorkoutSession } from './types'
 import { Targets, TrainingDay } from '../types'
 import { withTimeout } from '../utils'
 import { coachSeed } from './seed'
@@ -7,7 +7,7 @@ import { useAuth } from '../auth/AuthProvider'
 import { isSupabaseConfigured } from '../lib/supabase'
 import { subscribeToTables, debounce } from '../lib/realtime'
 import { sendPush } from '../lib/push'
-import { fetchCoachData, cloudUpdatePlan, cloudReplyToCheckIn, cloudUpdateProgram, cloudSetClientStatus, cloudApproveProposal, cloudRejectProposal } from './cloud'
+import { fetchCoachData, fetchClientWorkouts, cloudUpdatePlan, cloudReplyToCheckIn, cloudUpdateProgram, cloudSetClientStatus, cloudApproveProposal, cloudRejectProposal } from './cloud'
 
 type ClientStatus = 'pending' | 'active' | 'removed'
 
@@ -29,6 +29,7 @@ interface CoachStore {
   setClientStatus: (clientId: string, status: ClientStatus) => void
   approveProposal: (clientId: string, days: TrainingDay[]) => void
   rejectProposal: (clientId: string) => void
+  loadClientWorkouts: (clientId: string) => Promise<WorkoutSession[]>
   resetCoach: () => void
   refresh: () => void
 }
@@ -135,11 +136,13 @@ function CloudCoachProvider({ coachName, children }: { coachName: string; childr
     sendPush({ target: 'client', clientId, title: 'Plan request reviewed', body: 'Your coach kept your current program for now.', url: '/training' })
   }, [])
 
+  const loadClientWorkouts = useCallback((clientId: string) => fetchClientWorkouts(clientId), [])
+
   const value: CoachStore = {
     data, loading, authed: true,
     login: () => true, logout: () => {},
     getClient, replyToCheckIn, updateClientTargets, updateClient, updateProgram, setClientStatus,
-    approveProposal, rejectProposal,
+    approveProposal, rejectProposal, loadClientWorkouts,
     resetCoach: () => {}, refresh,
   }
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
@@ -193,7 +196,8 @@ function LocalCoachProvider({ children }: { children: ReactNode }) {
   const value: CoachStore = {
     data, loading: false, authed, login, logout, getClient,
     replyToCheckIn, updateClientTargets, updateClient, updateProgram, setClientStatus,
-    approveProposal: () => {}, rejectProposal: () => {}, resetCoach, refresh: () => {},
+    approveProposal: () => {}, rejectProposal: () => {}, loadClientWorkouts: () => Promise.resolve([]),
+    resetCoach, refresh: () => {},
   }
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }

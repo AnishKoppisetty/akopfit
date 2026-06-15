@@ -1,8 +1,17 @@
-import { Goal, Targets, WeightLog, CheckIn, TrainingDay } from '../types'
+import { Goal, Targets, WeightLog, CheckIn, TrainingDay, SetEntry } from '../types'
+
+// A past workout the client logged, for the coach to review.
+export interface WorkoutSession {
+  date: string
+  name: string
+  exercises: { name: string; sets: SetEntry[] }[]
+}
 
 export interface TodaySnapshot {
   calories: number
   protein: number
+  carbs: number
+  fat: number
   steps: number
   cardioMinutes: number
   water: number

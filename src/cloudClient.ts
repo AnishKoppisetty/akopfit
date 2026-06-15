@@ -49,6 +49,7 @@ export async function fetchClientData(userId: string): Promise<AppData> {
       water: d.water ?? undefined,
       workoutDone: d.workout_done ?? undefined,
       trainingDayId: d.training_day_id ?? undefined,
+      workoutName: d.workout_name ?? undefined,
     }
   }
   const ensure = (date: string): DailyLog => (dailyLogs[date] ??= { date })
@@ -107,6 +108,7 @@ export async function cloudUpsertDaily(userId: string, date: string, patch: Part
   if ('water' in patch) row.water = patch.water
   if ('workoutDone' in patch) row.workout_done = patch.workoutDone
   if ('trainingDayId' in patch) row.training_day_id = patch.trainingDayId
+  if ('workoutName' in patch) row.workout_name = patch.workoutName
   const { error } = await supabase.from('daily_logs').upsert(row, { onConflict: 'user_id,date' })
   if (error) throw error
 }
