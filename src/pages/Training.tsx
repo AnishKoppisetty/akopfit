@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store'
 import { Card, PageHeader, Chip, Button, Input } from '../components/ui'
-import { CheckIcon, DumbbellIcon, ChevronRight } from '../components/icons'
+import { CheckIcon, DumbbellIcon, ChevronRight, TrashIcon } from '../components/icons'
 import { todaySplitIndex, prettyDate } from '../utils'
 import { useSelectedDate } from '../components/SelectedDate'
 import { DateNav } from '../components/DateNav'
@@ -90,7 +90,7 @@ export default function Training() {
 }
 
 function PreviousWorkouts() {
-  const { data } = useStore()
+  const { data, deleteWorkout } = useStore()
   const [openDate, setOpenDate] = useState<string | null>(null)
 
   const sessions = Object.values(data.dailyLogs)
@@ -118,7 +118,7 @@ function PreviousWorkouts() {
                 </div>
                 <ChevronRight className={`text-muted transition ${isOpen ? 'rotate-90' : ''}`} />
               </button>
-              {isOpen && entries.length > 0 && (
+              {isOpen && (
                 <div className="mt-3 space-y-1.5 border-t border-ink-600/50 pt-3">
                   {entries.map(([name, sets]) => (
                     <div key={name} className="flex justify-between text-sm">
@@ -126,6 +126,17 @@ function PreviousWorkouts() {
                       <span className="tabular-nums shrink-0">{sets.filter(x => x.weight > 0 || x.reps > 0).map(x => `${x.weight}×${x.reps}`).join(', ')}</span>
                     </div>
                   ))}
+                  <button
+                    onClick={() => {
+                      if (confirm('Delete this logged workout? This clears the logged sets for this day and can’t be undone.')) {
+                        deleteWorkout(s.date)
+                        setOpenDate(null)
+                      }
+                    }}
+                    className="mt-2 flex items-center gap-1.5 text-xs font-medium text-rose-400 hover:text-rose-300"
+                  >
+                    <TrashIcon width={14} height={14} /> Delete this workout
+                  </button>
                 </div>
               )}
             </Card>
@@ -212,6 +223,18 @@ function ExerciseRow({ index, exercise, loggable, date }: { index: number; exerc
               className="py-2 text-sm"
             />
           </div>
+          {loggedCount > 0 && (
+            <button
+              onClick={() => {
+                editingRef.current = false
+                setExerciseSets(date, exercise.name, [])
+                setRows(Array.from({ length: exercise.sets }, () => ({ weight: 0, reps: 0 })))
+              }}
+              className="flex items-center gap-1.5 text-xs font-medium text-rose-400 hover:text-rose-300 pt-1"
+            >
+              <TrashIcon width={14} height={14} /> Clear logged sets
+            </button>
+          )}
         </div>
       )}
     </Card>

@@ -9,7 +9,7 @@ import { sendPush } from './lib/push'
 import {
   fetchClientData, cloudUpsertDaily, cloudAddWeight, cloudAddFood, cloudRemoveFood,
   cloudSetExerciseSets, cloudAddCheckIn, cloudUpdateProfile, cloudProposeProgram, cloudCancelProposal,
-  cloudSetExerciseNote,
+  cloudSetExerciseNote, cloudDeleteWorkout,
 } from './cloudClient'
 
 const STORAGE_KEY = 'akopfit:data:v2'
@@ -27,6 +27,7 @@ interface StoreContext {
   setWater: (date: string, glasses: number) => void
   setExerciseSets: (date: string, exercise: string, sets: SetEntry[]) => void
   setExerciseNote: (exercise: string, note: string) => void
+  deleteWorkout: (date: string) => void
   lastSetsFor: (exercise: string, beforeDate: string) => SetEntry[] | null
   addWeight: (log: WeightLog) => void
   addCheckIn: (c: Omit<CheckIn, 'id'>) => void
@@ -181,6 +182,19 @@ function CloudStoreProvider({ userId, children }: { userId: string; children: Re
     cloudSetExerciseNote(userId, exercise, note).catch(e => console.warn('[store] exercise note failed', e))
   }, [userId])
 
+  const deleteWorkout = useCallback((date: string) => {
+    setData(d => {
+      const log = d.dailyLogs[date]
+      if (!log) return d
+      const next = { ...log }
+      delete next.sets
+      next.workoutDone = false
+      next.trainingDayId = undefined
+      return { ...d, dailyLogs: { ...d.dailyLogs, [date]: next } }
+    })
+    cloudDeleteWorkout(userId, date).catch(e => console.warn('[store] delete workout failed', e))
+  }, [userId])
+
   const addCheckIn = useCallback((c: Omit<CheckIn, 'id'>) => {
     setData(d => ({ ...d, checkIns: [{ ...c, id: 'tmp-' + uid() }, ...d.checkIns] }))
     cloudAddCheckIn(userId, c).then(reload).catch(e => console.warn('[store] check-in failed', e))
@@ -237,7 +251,7 @@ function CloudStoreProvider({ userId, children }: { userId: string; children: Re
   const value: StoreContext = {
     data, loading, unreadReplies, markRepliesSeen,
     upsertDailyLog, getDailyLog, addFood, removeFood, saveToLibrary,
-    setWater, setExerciseSets, setExerciseNote, lastSetsFor, addWeight, addCheckIn, updateTargets,
+    setWater, setExerciseSets, setExerciseNote, deleteWorkout, lastSetsFor, addWeight, addCheckIn, updateTargets,
     updateProfile, setSplit, proposeProgram, cancelProposal, resetAll: reload,
   }
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
@@ -301,6 +315,17 @@ function LocalStoreProvider({ children }: { children: ReactNode }) {
   }, [])
   const lastSetsFor = useCallback((exercise: string, beforeDate: string) => lastSets(data.dailyLogs, exercise, beforeDate), [data.dailyLogs])
   const setExerciseNote = useCallback((exercise: string, note: string) => setData(d => ({ ...d, exerciseNotes: { ...d.exerciseNotes, [exercise]: note } })), [])
+  const deleteWorkout = useCallback((date: string) => {
+    setData(d => {
+      const log = d.dailyLogs[date]
+      if (!log) return d
+      const next = { ...log }
+      delete next.sets
+      next.workoutDone = false
+      next.trainingDayId = undefined
+      return { ...d, dailyLogs: { ...d.dailyLogs, [date]: next } }
+    })
+  }, [])
   const updateTargets = useCallback((t: Partial<Targets>) => setData(d => ({ ...d, targets: { ...d.targets, ...t } })), [])
   const updateProfile = useCallback((p: Partial<Profile>) => setData(d => ({ ...d, profile: { ...d.profile, ...p } })), [])
   const setSplit = useCallback((s: TrainingDay[]) => setData(d => ({ ...d, split: s })), [])
@@ -309,7 +334,7 @@ function LocalStoreProvider({ children }: { children: ReactNode }) {
   const value: StoreContext = {
     data, loading: false, unreadReplies: 0, markRepliesSeen: () => {},
     upsertDailyLog, getDailyLog, addFood, removeFood, saveToLibrary,
-    setWater, setExerciseSets, setExerciseNote, lastSetsFor, addWeight, addCheckIn, updateTargets,
+    setWater, setExerciseSets, setExerciseNote, deleteWorkout, lastSetsFor, addWeight, addCheckIn, updateTargets,
     updateProfile, setSplit, proposeProgram: () => {}, cancelProposal: () => {}, resetAll,
   }
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>

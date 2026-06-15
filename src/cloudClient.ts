@@ -138,6 +138,12 @@ export async function cloudSetExerciseSets(userId: string, date: string, exercis
   }
 }
 
+// Delete an entire logged workout for a date (all sets + the completed flag).
+export async function cloudDeleteWorkout(userId: string, date: string) {
+  await supabase.from('workout_sets').delete().eq('user_id', userId).eq('date', date)
+  await supabase.from('daily_logs').update({ workout_done: false, training_day_id: null }).eq('user_id', userId).eq('date', date)
+}
+
 // data URL -> Blob for storage upload
 function dataURLtoBlob(dataURL: string): Blob {
   const [head, body] = dataURL.split(',')

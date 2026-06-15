@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import { Button, Input, Field, Card } from '../components/ui'
 import { todayISO } from '../utils'
 import { ACTIVITY, ActivityKey, computeTargets } from '../lib/tdee'
+import { assignSplit } from '../lib/splits'
 
 type Unit = 'lb' | 'kg'
 type Sex = 'Male' | 'Female' | 'Other'
@@ -29,8 +30,11 @@ export default function Onboarding() {
   const [goal, setGoal] = useState<Goal>('cut')
   const [goalWeight, setGoalWeight] = useState('')
   const [activity, setActivity] = useState<ActivityKey>('moderate')
+  const [trainingDays, setTrainingDays] = useState(4)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+
+  const split = assignSplit(trainingDays)
 
   const heightCm = unit === 'kg'
     ? num(cm)
@@ -46,20 +50,25 @@ export default function Onboarding() {
     const w = num(weight)
     // Auto-calculate starting calories/macros (coach can adjust later).
     const t = computeTargets({ sex: sex as Sex, age: num(age), heightCm, weightLb: unit === 'kg' ? w * 2.2046226218 : w, activity, goal })
-    const [p1, p2, p3] = await Promise.all([
+    const assigned = assignSplit(trainingDays)
+    const [p1, p2, p3, p4] = await Promise.all([
       supabase.from('profiles').update({
         unit, sex, age: num(age), height_cm: heightCm, start_weight: w, activity_level: activity, onboarded: true,
       }).eq('id', userId),
       supabase.from('plans').update({
         goal, goal_weight: goalWeight ? num(goalWeight) : w,
         calories: t.calories, protein: t.protein, carbs: t.carbs, fat: t.fat, water: t.water,
+        split_name: assigned.name,
       }).eq('user_id', userId),
       supabase.from('weight_logs').upsert(
         { user_id: userId, date: todayISO(), weight: w }, { onConflict: 'user_id,date' },
       ),
+      supabase.from('programs').upsert(
+        { user_id: userId, days: assigned.days, updated_at: new Date().toISOString() }, { onConflict: 'user_id' },
+      ),
     ])
     setBusy(false)
-    const err = p1.error || p2.error || p3.error
+    const err = p1.error || p2.error || p3.error || p4.error
     if (err) { setError(err.message); return }
     await refreshProfile()
   }
@@ -136,10 +145,22 @@ export default function Onboarding() {
               ))}
             </div>
           </div>
+
+          <div>
+            <span className="text-xs text-muted mb-1.5 block">Days per week you train</span>
+            <div className="flex gap-2">
+              {[2, 3, 4, 5, 6].map(n => (
+                <Toggle key={n} active={trainingDays === n} onClick={() => setTrainingDays(n)}>{n}</Toggle>
+              ))}
+            </div>
+            <p className="text-[11px] text-muted mt-2">
+              We’ll start you on a <span className="text-accent font-semibold">{split.name}</span> split ({split.days.length} days).
+            </p>
+          </div>
         </Card>
 
         {error && <p className="text-sm text-rose-400">{error}</p>}
-        <p className="text-[11px] text-muted text-center">We’ll set your starting calories &amp; macros from this — your coach can fine-tune them.</p>
+        <p className="text-[11px] text-muted text-center">We’ll set your starting calories, macros &amp; training split from this — your coach can fine-tune everything.</p>
         <Button type="submit" className="w-full" disabled={busy || !valid}>
           {busy ? 'Saving…' : 'Continue'}
         </Button>
